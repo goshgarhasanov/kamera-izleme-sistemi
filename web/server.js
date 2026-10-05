@@ -105,7 +105,7 @@ function stopRec(cam) { recState[cam.id] = { enabled: false, since: null }; cons
 
 // ---------- HƏRƏKƏT (hər kamera) ----------
 const motionProcs = {}, clipProcs = {}, ringProcs = {}, mState = {}; // mState[id]={lastCapture,capturing,lastClip,prev}
-const MW = 128, MH = 72, MGW = 32, MGH = 18, MCW = 4, MCH = 4, MOTION_COOLDOWN = 6000, CLIP_GAP = 30000, PRE_MS = 5000, POST_MS = 30000;
+const MW = 128, MH = 72, MGW = 32, MGH = 18, MCW = 4, MCH = 4, MOTION_COOLDOWN = 6000, CLIP_GAP = 30000, PRE_MS = 5000, POST_MS = 60000;
 // ---------- PRE-RECORD RING (davamlı son ~40s bufer, gecikməsiz klip üçün) ----------
 function ringDir(cam) { return path.join(dirOf(cam, 'hareket_video'), '.ring'); }
 function startRing(cam) {
@@ -139,7 +139,7 @@ function analyzeFrame(cam, frame) {
       const minA = MIN_AREA[cam.motionMinSize] || 10;
       const comps = motionComponents(act).filter(c => (c[2] - c[0]) * (c[3] - c[1]) >= minA); // kiçik cisimləri (yarpaq) at
       if (comps.length && comps.length <= 10) {
-        const now = Date.now(), dyn = cam.motionShots === 'dynamic', cooldown = dyn ? 2500 : MOTION_COOLDOWN, shots = dyn ? 1 : Math.max(1, Math.min(5, parseInt(cam.motionShots) || 1));
+        const now = Date.now(), dyn = cam.motionShots === 'dynamic', cooldown = dyn ? 2500 : MOTION_COOLDOWN, shots = dyn ? 1 : Math.max(1, Math.min(20, parseInt(cam.motionShots) || 1));
         if (now - S.lastCapture > cooldown && !S.capturing) { S.lastCapture = now; captureMotion(cam, comps, shots); }
         recordMotionClip(cam);
       }
@@ -160,15 +160,12 @@ function motionComponents(act) {
 function captureMotion(cam, comps, count = 1) {
   const S = mState[cam.id]; S.capturing = true;
   const SW = 2880, SH = 1620, sx = SW / MGW, sy = SH / MGH;
-  const vf = comps.slice(0, 10).map(([x0, y0, x1, y1]) => `drawbox=x=${Math.round(x0*sx)}:y=${Math.round(y0*sy)}:w=${Math.round((x1-x0)*sx)}:h=${Math.round((y1-y0)*sy)}:color=lime:t=8`).join(',');
-  let shot = 0;
-  const grab = () => {
-    const fn = `hr_${stamp()}-${shot}.jpg`;
-    const ff = spawn('ffmpeg', ['-nostdin', '-loglevel', 'error', '-rtsp_transport', 'tcp', '-i', mainUrl(cam), '-frames:v', '1', '-q:v', '2', '-vf', vf, path.join(dirOf(cam, 'hareket'), fn)], { stdio: ['ignore', 'ignore', 'ignore'] });
-    const next = () => { shot++; if (shot < count) setTimeout(grab, 300); else S.capturing = false; };
-    ff.on('exit', next); ff.on('error', next);
-  };
-  grab(); setTimeout(() => { S.capturing = false; }, 15000);
+  const boxes = comps.slice(0, 10).map(([x0, y0, x1, y1]) => `drawbox=x=${Math.round(x0*sx)}:y=${Math.round(y0*sy)}:w=${Math.round((x1-x0)*sx)}:h=${Math.round((y1-y0)*sy)}:color=lime:t=8`).join(',');
+  const n = Math.max(1, Math.min(20, count)); const dur = n <= 1 ? 1 : 5; const fps = n / dur; // bir keçiddə n kadr (bir bağlantı)
+  const vf = (boxes ? boxes + ',' : '') + `fps=${fps}`;
+  const base = `hr_${stamp()}`;
+  const ff = spawn('ffmpeg', ['-nostdin', '-loglevel', 'error', '-rtsp_transport', 'tcp', '-i', mainUrl(cam), '-t', String(dur), '-vf', vf, '-q:v', '2', path.join(dirOf(cam, 'hareket'), base + '-%02d.jpg')], { stdio: ['ignore', 'ignore', 'ignore'] });
+  const done = () => { S.capturing = false; }; ff.on('exit', done); ff.on('error', done); setTimeout(done, (dur + 8) * 1000);
 }
 // hərəkət anında: ring-buferdən PRE + POST saniyələri birləşdir (gecikməsiz, hadisədən əvvəlki anlar daxil)
 function recordMotionClip(cam) {
@@ -283,6 +280,22 @@ function playRec(req, res, cam, kind, name, t) {
   const ff = spawn('ffmpeg', a, { stdio: ['ignore', 'pipe', 'ignore'] });
   res.writeHead(200, { 'Content-Type': 'video/mp4', 'Cache-Control': 'no-cache' }); ff.stdout.pipe(res);
   const k = () => { try { ff.kill('SIGKILL'); } catch (e) {} }; req.on('close', k); ff.on('error', () => { try { res.end(); } catch (e) {} });
+}
+// seekable player — ilk dəfə H.264 faststart-a çevirib keşlə, sonra range ilə ver (müddət + irəli/geri işləsin)
+function serveVPlay(req, res, cam, kind, name) {
+  const src = safeName(cam, kind, 'mp4', name); if (!src || !fs.existsSync(src)) { res.writeHead(404); return res.end('yoxdur'); }
+  const cdir = path.join(dirOf(cam, kind), '.h264'); try { fs.mkdirSync(cdir, { recursive: true }); } catch (e) {}
+  const cp = path.join(cdir, name);
+  const serveRange = () => {
+    const st = fs.statSync(cp), range = req.headers.range;
+    if (range) { const m = range.match(/bytes=(\d+)-(\d*)/); const s = +m[1], e = m[2] ? +m[2] : st.size - 1; res.writeHead(206, { 'Content-Range': `bytes ${s}-${e}/${st.size}`, 'Accept-Ranges': 'bytes', 'Content-Length': e - s + 1, 'Content-Type': 'video/mp4' }); fs.createReadStream(cp, { start: s, end: e }).pipe(res); }
+    else { res.writeHead(200, { 'Content-Length': st.size, 'Accept-Ranges': 'bytes', 'Content-Type': 'video/mp4' }); fs.createReadStream(cp).pipe(res); }
+  };
+  try { if (fs.existsSync(cp) && fs.statSync(cp).size > 2000) return serveRange(); } catch (e) {}
+  const tmp = cp + '.' + Date.now() + '.part.mp4';
+  const ff = spawn('ffmpeg', ['-nostdin', '-loglevel', 'error', '-i', src, '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '24', '-pix_fmt', 'yuv420p', '-vf', "scale='min(1280,iw)':-2", '-c:a', 'aac', '-ac', '1', '-movflags', '+faststart', '-f', 'mp4', tmp, '-y'], { stdio: ['ignore', 'ignore', 'ignore'] });
+  ff.on('exit', c => { if (c === 0 && fs.existsSync(tmp)) { try { fs.renameSync(tmp, cp); } catch (e) {} try { serveRange(); } catch (e) { res.writeHead(500); res.end(); } } else { try { fs.unlinkSync(tmp); } catch (e) {} res.writeHead(500); res.end('çevrilmə xətası'); } });
+  ff.on('error', () => { try { res.writeHead(500); res.end(); } catch (e) {} });
 }
 function download(req, res, cam, kind, ext, name, type) {
   const p = safeName(cam, kind, ext, name); if (!p || !fs.existsSync(p)) { res.writeHead(404); return res.end('yoxdur'); }
@@ -435,6 +448,8 @@ const server = http.createServer(async (req, res) => {
     else if (p === '/api/recordings/batch-delete' && req.method === 'POST') { const b = await readBody(req); json(res, batchDelete(cam, 'videolar', 'mp4', b.names, b.all, true)); }
     else if (p.startsWith('/api/recordings/') && req.method === 'DELETE') json(res, batchDelete(cam, 'videolar', 'mp4', [p.replace('/api/recordings/', '')], false, true));
     else if (p.startsWith('/api/duration/')) duration(req, res, cam, 'videolar', p.replace('/api/duration/', ''));
+    else if (p.startsWith('/vplay/rec/')) serveVPlay(req, res, cam, 'videolar', p.replace('/vplay/rec/', ''));
+    else if (p.startsWith('/vplay/mv/')) serveVPlay(req, res, cam, 'hareket_video', p.replace('/vplay/mv/', ''));
     else if (p.startsWith('/play/')) playRec(req, res, cam, 'videolar', p.replace('/play/', ''), parseFloat(q.get('t')) || 0);
     else if (p.startsWith('/download/')) download(req, res, cam, 'videolar', 'mp4', p.replace('/download/', ''), 'video/mp4');
     // hərəkət şəkilləri

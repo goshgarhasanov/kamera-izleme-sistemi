@@ -196,6 +196,12 @@ body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background
 .modal-h{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);gap:12px}
 .modal-h .t{font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}.modal-h .acts{display:flex;gap:8px}
 .modal video{width:100%;background:#000;max-height:66vh;display:block}
+.player-wrap{position:relative;background:#000;line-height:0}
+.player-wrap video{width:100%;background:#000;max-height:72vh;display:block}
+.pnav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(20,15,9,.65);border:1px solid rgba(255,149,0,.35);color:#fff;width:50px;height:50px;border-radius:50%;cursor:pointer;font-size:28px;line-height:1;display:flex;align-items:center;justify-content:center;z-index:3;transition:.2s;backdrop-filter:blur(4px)}
+.pnav:hover{background:var(--accent);border-color:var(--accent);transform:translateY(-50%) scale(1.12);box-shadow:0 4px 16px var(--glow)}
+.pprev{left:14px}.pnext{right:14px}
+@media(max-width:600px){.pnav{width:40px;height:40px;font-size:22px}.pprev{left:8px}.pnext{right:8px}}
 .modal-f{padding:14px 18px;display:flex;gap:14px;align-items:center}.modal-f input[type=range]{flex:1;accent-color:var(--accent)}
 .modal-f .tl{font-size:12px;color:var(--muted);min-width:52px;font-variant-numeric:tabular-nums}
 .x{background:none;border:none;font-size:22px;color:var(--muted);cursor:pointer;padding:4px 8px;border-radius:8px}.x:hover{color:var(--text);background:var(--hover)}
@@ -631,7 +637,7 @@ img,video,canvas,svg{max-width:100%}
               <div class="field"><label>Hərəkət Həssaslığı (kiçik = daha həssas)</label><input id="setSens" type="number" step="0.01" min="0.01" max="0.5" placeholder="0.04"></div>
               <div class="field"><label>Yazılma rejimi</label><select id="setRecMode"><option value="continuous">Davamlı (24/7)</option><option value="motion">Yalnız hərəkət olduqda</option><option value="off">Söndürülmüş</option></select></div>
               <div class="field"><label>Minimum cisim ölçüsü (kiçik hərəkətləri — yarpaq, kölgə — görməzdən gəl)</label><select id="setMinSize"><option value="small">Kiçik (həssas)</option><option value="medium">Orta (yarpaqları filtrlə)</option><option value="large">Böyük (yalnız insan/maşın)</option></select></div>
-              <div class="field"><label>Hərəkətdə çəkilən şəkil sayı</label><select id="setShots"><option value="1">1 şəkil</option><option value="2">2 şəkil</option><option value="3">3 şəkil</option><option value="dynamic">Dinamik (hərəkət boyunca)</option></select></div>
+              <div class="field"><label>Hərəkətdə çəkilən şəkil sayı</label><select id="setShots"><option value="1">1 şəkil</option><option value="3">3 şəkil</option><option value="5">5 şəkil</option><option value="10">10 şəkil</option><option value="15">15 şəkil</option><option value="dynamic">Dinamik (hərəkət boyunca)</option></select></div>
               <div class="field"><label>Yazılma Parça Müddəti</label><select id="setSeg"><option value="60">1 dəqiqə</option><option value="300">5 dəqiqə</option><option value="600">10 dəqiqə</option><option value="1800">30 dəqiqə</option><option value="3600">1 saat</option></select></div>
               <button class="btn primary" onclick="saveSettings()" style="width:100%;justify-content:center;padding:12px"><svg viewBox="0 0 24 24"><path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm3-10H5V5h10v4z"/></svg>Yadda Saxla və Tətbiq Et</button>
             </div>
@@ -680,11 +686,13 @@ img,video,canvas,svg{max-width:100%}
 <!-- OYNATICI -->
 <div class="modal" id="modal"><div class="modal-box">
   <div class="modal-h"><span class="t" id="mT"></span><div class="acts">
-    <button class="btn" onclick="playNav(-1)" title="Sol (əvvəlki video)"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6z"/></svg>Sol</button>
-    <button class="btn" onclick="playNav(1)" title="Sağ (sonrakı video)">Sağ<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6z"/></svg></button>
     <button class="btn" onclick="dlCur()"><svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg>Yüklə</button>
     <button class="btn danger" onclick="delCur()"><svg viewBox="0 0 24 24"><path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2H8l1-2z"/></svg>Sil</button><button class="x" onclick="closeModal()">✕</button></div></div>
-  <video id="player" controls autoplay playsinline style="width:100%;background:#000;max-height:72vh;display:block"></video>
+  <div class="player-wrap">
+    <video id="player" controls autoplay playsinline></video>
+    <button class="pnav pprev" onclick="playNav(-1)" title="Əvvəlki video">‹</button>
+    <button class="pnav pnext" onclick="playNav(1)" title="Sonrakı video">›</button>
+  </div>
 </div></div>
 <!-- BÖYÜK GÖRÜNÜŞ (çoxlu görünüşdən) -->
 <div class="modal" id="bigV" style="z-index:80"><div class="modal-box" style="max-width:1100px">
@@ -1041,7 +1049,7 @@ function refresh(k){({rec:loadRecs,pho:loadPhotos,mot:loadMotion,mv:loadMvids}[k
 
 /* OYNATICI — tək native player + sol/sağ keçid */
 let current=null,curKind='rec',navList=[],curIdx=-1;
-const PLAYEP={rec:{p:'/play/',dl:'/share/rec/'},mv:{p:'/mv-play/',dl:'/share/mv/'}};
+const PLAYEP={rec:{p:'/vplay/rec/',dl:'/share/rec/'},mv:{p:'/vplay/mv/',dl:'/share/mv/'}};
 function playFile(name){current=name;$('#mT').textContent=name;const v=$('#player');v.src=M(PLAYEP[curKind].p+encodeURIComponent(name));v.play().catch(()=>{});}
 async function play(name,kind='rec'){curKind=kind;$('#modal').classList.add('open');
   navList=(kind==='rec'?RECS:MVIDS).filter(x=>x.ready!==false);curIdx=navList.findIndex(x=>x.name===name);playFile(name);}
@@ -1136,7 +1144,7 @@ function evtCard(e,i){const thumb=e.type==='clip'?`/thumb/mv/${encodeURIComponen
     <img loading="lazy" src="${thumb}" onerror="this.style.opacity=.2" alt="">${badge}
     <span class="tm"><span>${new Date(e.date).toLocaleTimeString('az-AZ')}${($('#evtAllCams')&&$('#evtAllCams').checked)?' · '+camName(e.cam):''}</span><span>${e.type==='clip'?fmt(e.dur||0):fmtSize(e.size)}</span></span></div>`;}
 function openEvent(type,cam,name){if(CAM!==cam){CAM=cam;localStorage.setItem('cam',cam);renderCamSwitch();}
-  if(type==='clip'){navList=[];curIdx=-1;curKind='mv';current=name;$('#mT').textContent=name;$('#modal').classList.add('open');const v=$('#player');v.src=M('/mv-play/'+encodeURIComponent(name));v.play().catch(()=>{});}
+  if(type==='clip'){navList=[];curIdx=-1;curKind='mv';current=name;$('#mT').textContent=name;$('#modal').classList.add('open');const v=$('#player');v.src=M('/vplay/mv/'+encodeURIComponent(name));v.play().catch(()=>{});}
   else{evtViewImg('/motion/'+encodeURIComponent(name)+'?cam='+cam,name);}}
 function evtViewImg(url,caption){lbSingle=true;$('#lbImg').src=url;$('#lbT').textContent=caption;lbScale=1;lbX=0;lbY=0;lbApply();$('#lb').classList.add('open');}
 /* SƏSLƏR — yüklə / qeyd et / kameradan çal */
