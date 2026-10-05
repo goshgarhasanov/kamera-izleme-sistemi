@@ -1,0 +1,17 @@
+[Unit]
+Description=Kamera Izleme Sistemi (Uniview)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=gg
+WorkingDirectory=/home/gg/kamera_kayit/web
+ExecStart=/usr/bin/node /home/gg/kamera_kayit/web/server.js
+Environment=PORT=8088
+Restart=always
+RestartSec=5
+# cokerse/yeniden baslayanda yazilma+hereket avtomatik davam edir
+
+[Install]
+WantedBy=multi-user.target

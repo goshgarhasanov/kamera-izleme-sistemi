@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Kamera İzləmə Sistemi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0c0a06;--bg2:#120e08;--panel:#1a140c;--panel2:#241a0f;--hover:#30230f;--border:#3a2b16;
+  --text:#f6eddd;--muted:#b6a07e;--faint:#73604440;--faint:#76603f;--accent:#ff9500;--glow:rgba(255,149,0,.42);
+  --green:#2bb673;--red:#ef4444;--amber:#ffc24b;--purple:#e0a53a;--gold:#f5c045;--r:16px}
+*{box-sizing:border-box;margin:0;padding:0}
+::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:5px}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:
+  radial-gradient(1200px 600px at 100% -10%,rgba(255,149,0,.08),transparent),
+  radial-gradient(900px 500px at -10% 110%,rgba(224,165,58,.06),transparent),var(--bg);
+  color:var(--text);min-height:100vh}
+.app{display:flex;min-height:100vh}
+.sidebar{width:252px;background:rgba(14,19,28,.85);backdrop-filter:blur(12px);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;position:fixed;inset:0 auto 0 0;z-index:40;transition:transform .3s}
+.brand{display:flex;align-items:center;gap:12px;padding:20px;border-bottom:1px solid var(--border)}
+.brand .logo{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--purple));
+  display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px var(--glow)}
+.brand .logo svg{width:22px;height:22px;fill:#fff}.brand h1{font-size:15px;font-weight:700}.brand p{font-size:11px;color:var(--muted)}
+.nav{padding:12px;flex:1;display:flex;flex-direction:column;gap:3px;overflow-y:auto}
+.nav a{display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:11px;color:var(--muted);
+  text-decoration:none;font-size:14px;font-weight:500;cursor:pointer;transition:.18s;position:relative}
+.nav a svg{width:19px;height:19px;fill:currentColor;flex-shrink:0}
+.nav a:hover{background:var(--hover);color:var(--text)}
+.nav a.active{background:linear-gradient(135deg,rgba(255,149,0,.18),rgba(255,149,0,.06));color:#fff}
+.nav a.active::before{content:"";position:absolute;left:0;top:20%;bottom:20%;width:3px;border-radius:3px;background:var(--accent);box-shadow:0 0 8px var(--accent)}
+.nav .badge{margin-left:auto;background:var(--panel2);color:var(--muted);font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600}
+.foot{padding:14px 20px;border-top:1px solid var(--border);font-size:11px;color:var(--faint)}
+.pill{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin-bottom:6px}
+.pill .dot{width:8px;height:8px;border-radius:50%;background:var(--faint)}
+.pill.on .dot{background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite}
+@keyframes pulse{50%{opacity:.4}}
+.main{flex:1;margin-left:252px;min-width:0;display:flex;flex-direction:column}
+.topbar{display:flex;align-items:center;gap:16px;padding:16px 28px;border-bottom:1px solid var(--border);
+  background:rgba(10,14,20,.6);backdrop-filter:blur(8px);position:sticky;top:0;z-index:30}
+.topbar .mb{display:none}.topbar h2{font-size:19px;font-weight:700}
+.brand .bt{flex:1;min-width:0}
+.rail-toggle{margin-left:auto;background:var(--panel2);border:1px solid var(--border);color:var(--muted);width:30px;height:30px;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.2s}
+.rail-toggle:hover{background:var(--hover);color:var(--accent);border-color:var(--accent);transform:scale(1.08)}
+.rail-toggle svg{width:16px;height:16px}
+.app.rail .rail-toggle svg{transform:rotate(180deg);transition:transform .3s}
+.app.rail .brand{flex-direction:column;gap:12px;padding:16px 0}
+.app.rail .brand .rail-toggle{margin:0}
+/* === YIĞILAN SIDEBAR (rail) === */
+.sidebar,.main{transition:width .28s cubic-bezier(.2,.8,.2,1),margin-left .28s cubic-bezier(.2,.8,.2,1)}
+.app.rail .sidebar{width:76px}
+.app.rail .main{margin-left:76px}
+.app.rail .brand{justify-content:center;padding:18px 0}
+.app.rail .brand h1,.app.rail .brand p{display:none}
+.app.rail .nav{padding:12px 10px}
+.app.rail .nav a{justify-content:center;padding:14px 0;font-size:0}
+.app.rail .nav a svg{width:25px;height:25px}
+.app.rail .nav a.active::before{top:14%;bottom:14%}
+.app.rail .nav .badge{position:absolute;top:5px;right:10px;font-size:9px;padding:1px 5px;min-width:0}
+.app.rail .foot .pill span:last-child,.app.rail .foot #footIp,.app.rail .devcredit .dc-lbl,.app.rail .devcredit .dc-name span,.app.rail .devcredit .dc-name{font-size:0}
+.app.rail .foot{padding:12px 8px;text-align:center}
+.app.rail .devcredit{padding:10px 6px}.app.rail .devcredit .dc-name svg{width:16px;height:16px}
+@media(max-width:860px){.app.rail .sidebar{width:252px}.app.rail .main{margin-left:0}}
+.topbar .rec-ind{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;padding:5px 11px;border-radius:20px;background:var(--panel2);color:var(--muted)}
+.topbar .rec-ind.on{background:rgba(239,68,68,.15);color:#ff6b6b}.topbar .rec-ind.on .d{animation:pulse 1.2s infinite}
+.rec-ind .d{width:8px;height:8px;border-radius:50%;background:currentColor}
+.topbar .clock{margin-left:auto;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.content{padding:28px}
+.view{display:none;animation:fadeUp .4s cubic-bezier(.2,.8,.2,1)}.view.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.card{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+.card-h{display:flex;align-items:center;gap:10px;padding:15px 20px;border-bottom:1px solid var(--border)}
+.card-h svg{width:18px;height:18px;fill:var(--accent)}.card-h h3{font-size:14px;font-weight:600}.card-h .tools{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.live-wrap{position:relative;background:#000;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center}
+.live-wrap img{width:100%;height:100%;object-fit:contain}
+.live-badge{position:absolute;top:14px;right:14px;background:rgba(239,68,68,.92);color:#fff;font-size:11px;font-weight:700;padding:5px 12px;border-radius:30px;display:flex;align-items:center;gap:7px;backdrop-filter:blur(4px);z-index:3}
+.live-badge .dot{width:7px;height:7px;border-radius:50%;background:#fff;animation:pulse 1.4s infinite}
+.live-ov{position:absolute;bottom:14px;right:14px;background:rgba(0,0,0,.5);backdrop-filter:blur(6px);padding:6px 12px;border-radius:10px;font-size:12px;color:#cbd5e1}
+.box-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2}
+.conn-badge{position:absolute;top:14px;left:14px;z-index:3;display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;padding:5px 12px;border-radius:30px;backdrop-filter:blur(4px);transition:.2s}
+.conn-badge .d{width:8px;height:8px;border-radius:50%;background:currentColor}
+.conn-badge.ok{background:rgba(34,197,94,.9);color:#fff}
+.conn-badge.weak{background:rgba(245,158,11,.92);color:#fff}
+.conn-badge.weak .d{animation:pulse 1s infinite}
+.conn-badge.reconn{background:rgba(239,68,68,.92);color:#fff}.conn-badge.reconn .d{animation:pulse .7s infinite}
+.rec-sub{position:absolute;top:46px;right:14px;z-index:3;display:none;align-items:center;gap:6px;background:rgba(239,68,68,.92);color:#fff;font-size:11px;font-weight:700;padding:4px 11px;border-radius:20px;backdrop-filter:blur(4px)}
+.rec-sub .d{width:7px;height:7px;border-radius:50%;background:#fff;animation:pulse 1.2s infinite}
+.spinner{width:42px;height:42px;border:3px solid rgba(255,255,255,.15);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;position:absolute}
+@keyframes spin{to{transform:rotate(360deg)}}
+.btn{background:var(--panel2);color:var(--text);border:1px solid var(--border);padding:9px 14px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:7px;transition:.16s;white-space:nowrap}
+.btn svg{width:16px;height:16px;fill:currentColor}.btn:hover{background:var(--hover);border-color:var(--accent);transform:translateY(-1px)}
+.btn.primary{background:linear-gradient(135deg,var(--accent),#e07b00);border-color:transparent;color:#fff;box-shadow:0 4px 14px var(--glow)}
+.btn.red{background:linear-gradient(135deg,var(--red),#dc2626);border-color:transparent;color:#fff}
+.btn.green{background:linear-gradient(135deg,var(--green),#16a34a);border-color:transparent;color:#fff}
+.btn.danger{color:#fff;background:linear-gradient(135deg,var(--red),#dc2626);border-color:transparent}.btn.danger:hover{opacity:.9;color:#fff}
+.act.del-red,.rec .info .act.del-red{color:var(--red)}
+.btn.icon{padding:9px}.btn.sm{padding:6px 10px;font-size:12px}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:24px}
+.tile{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--border);border-radius:14px;padding:18px;transition:.2s}
+.tile:hover{transform:translateY(-3px);border-color:var(--accent)}
+.tile .ic{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+.tile .ic svg{width:20px;height:20px}.tile .val{font-size:24px;font-weight:700}.tile .lbl{font-size:12px;color:var(--muted);margin-top:3px}
+.ic.blue{background:rgba(255,149,0,.15)}.ic.blue svg{fill:var(--accent)}.ic.green{background:rgba(34,197,94,.15)}.ic.green svg{fill:var(--green)}
+.ic.amber{background:rgba(245,158,11,.15)}.ic.amber svg{fill:var(--amber)}.ic.purple{background:rgba(224,165,58,.15)}.ic.purple svg{fill:var(--purple)}
+.toolbar{display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap;align-items:center}
+.search{flex:1;min-width:180px;position:relative}
+.search svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:17px;height:17px;fill:var(--muted)}
+.search input{width:100%;background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:11px 14px 11px 42px;color:var(--text);font-size:14px;outline:none}
+.search input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow)}
+.selbar{display:none;align-items:center;gap:10px;background:rgba(255,149,0,.1);border:1px solid rgba(255,149,0,.3);border-radius:12px;padding:10px 14px;margin-bottom:16px;flex-wrap:wrap}
+.selbar.show{display:flex}.selbar .cnt{font-weight:600;font-size:13px}.selbar .sp{flex:1}
+.day-group{margin-bottom:24px}.day-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.day-head .di{width:30px;height:30px;border-radius:9px;background:var(--panel2);display:flex;align-items:center;justify-content:center}
+.day-head .di svg{width:16px;height:16px;fill:var(--accent)}.day-head h4{font-size:14px;font-weight:600}
+.day-head .c{font-size:12px;color:var(--muted);background:var(--panel);padding:2px 9px;border-radius:10px}
+.rec-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.rec{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:.2s;animation:fadeUp .4s both;position:relative}
+.rec:hover{transform:translateY(-4px);border-color:var(--accent);box-shadow:0 12px 30px rgba(0,0,0,.35)}
+.rec.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.rec .thumb{aspect-ratio:16/9;background:linear-gradient(135deg,#1a2230,#0f141d);display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer}
+.rec .thumb .vthumb{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.rec .thumb .pic{position:relative;z-index:2;width:46px;height:46px;border-radius:50%;background:rgba(255,149,0,.82);display:flex;align-items:center;justify-content:center;transition:.2s;box-shadow:0 4px 16px rgba(0,0,0,.5)}
+.rec:hover .thumb .pic{transform:scale(1.12)}.rec .thumb .pic svg{width:20px;height:20px;fill:#fff;margin-left:2px}
+.rec .thumb .time{position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.65);color:#fff;font-size:11px;padding:2px 8px;border-radius:6px;font-weight:600}
+.rec .thumb .writing{position:absolute;top:8px;right:8px;background:rgba(239,68,68,.9);color:#fff;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;display:flex;align-items:center;gap:5px}
+.rec .thumb .writing .d{width:6px;height:6px;border-radius:50%;background:#fff;animation:pulse 1.2s infinite}
+.chk{position:absolute;top:8px;left:8px;width:24px;height:24px;border-radius:7px;background:rgba(0,0,0,.5);border:2px solid #fff;cursor:pointer;z-index:3;display:flex;align-items:center;justify-content:center;transition:.15s}
+.chk.on{background:var(--accent);border-color:var(--accent)}.chk svg{width:14px;height:14px;fill:#fff;opacity:0}.chk.on svg{opacity:1}
+.rec .info{padding:11px 13px;display:flex;align-items:center;gap:10px}.rec .info .meta{flex:1;min-width:0}
+.nm{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rec .info .nm{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rec .info .sb{font-size:11px;color:var(--muted);margin-top:2px}
+.rec .info .act{color:var(--faint);padding:6px;border-radius:8px;cursor:pointer}.rec .info .act:hover{color:var(--accent);background:var(--panel2)}
+.rec .info .act svg{width:16px;height:16px;fill:currentColor;display:block}
+.gal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
+.ph{position:relative;border-radius:12px;overflow:hidden;aspect-ratio:16/9;background:var(--panel2);border:1px solid var(--border);animation:fadeUp .4s both;cursor:zoom-in}
+.ph.sel{box-shadow:0 0 0 2px var(--accent)}.ph img{width:100%;height:100%;object-fit:cover;transition:.3s}.ph:hover img{transform:scale(1.08)}
+.ph .tm{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.8));color:#fff;font-size:11px;font-weight:600;padding:16px 10px 7px;display:flex;justify-content:space-between}
+.ph .act{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.6);width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;opacity:0;transition:.15s;z-index:3}
+.ph:hover .act{opacity:1}.ph .act:hover{background:var(--red)}.ph .act svg{width:15px;height:15px;fill:#fff}
+.empty{padding:60px 20px;text-align:center;color:var(--muted)}.empty svg{width:56px;height:56px;fill:var(--faint);margin-bottom:14px;opacity:.5}
+.empty p{font-size:14px}.empty .sm{font-size:12px;color:var(--faint);margin-top:6px}
+/* PTZ overlay (canlı üzərində) */
+.ptz-ov{position:absolute;inset:0;background:rgba(6,10,16,.55);backdrop-filter:blur(3px);display:none;
+  align-items:center;justify-content:space-between;padding:20px;gap:16px;animation:fadeIn .2s}
+.ptz-ov.show{display:flex}
+.ptz-ov .pad-col{display:flex;flex-direction:column;align-items:center;gap:12px}
+.ptz-ov .ptz-pad{max-width:200px}@media(max-width:600px){.ptz-ov{flex-direction:column;justify-content:center;padding:12px}.ptz-ov .ptz-pad{max-width:150px}}
+.ptz-ov .ptz-pad button{background:rgba(27,34,46,.85);font-size:18px;border-radius:12px}
+.ptz-ov .side{display:flex;flex-direction:column;gap:12px;min-width:200px;max-width:260px;max-height:100%;overflow-y:auto}
+.ptz-ov .side .ttl{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.ptz-ov .zoomrow{margin-top:0}.ptz-ov .zoomrow button{background:rgba(27,34,46,.85)}
+.ptz-preset-row{display:flex;flex-wrap:wrap;gap:6px}
+.ptz-preset-row .pp{background:rgba(27,34,46,.85);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:8px;font-size:12px;cursor:pointer}
+.ptz-preset-row .pp:hover{background:var(--accent);border-color:var(--accent)}
+.ptz-close{position:absolute;top:12px;right:12px;background:rgba(0,0,0,.5);border:none;color:#fff;width:34px;height:34px;border-radius:10px;cursor:pointer;font-size:18px;z-index:5}
+.ptz-wrap{display:grid;grid-template-columns:1fr;gap:20px}@media(min-width:800px){.ptz-wrap{grid-template-columns:1.3fr 1fr}}
+.ptz-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:280px;margin:0 auto}
+.ptz-pad button{aspect-ratio:1;background:var(--panel2);border:1px solid var(--border);border-radius:14px;color:var(--text);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.12s;user-select:none}
+.ptz-pad button:hover{background:var(--accent);border-color:var(--accent);color:#fff}
+.ptz-pad button:active{transform:scale(.92)}.ptz-pad .home{background:linear-gradient(135deg,var(--accent),#e07b00);color:#fff;border:none}
+.ptz-pad svg{width:26px;height:26px;fill:currentColor}
+.zoomrow{display:flex;gap:10px;justify-content:center;margin-top:16px}
+.zoomrow button{flex:1;max-width:130px;padding:14px;background:var(--panel2);border:1px solid var(--border);border-radius:12px;color:var(--text);cursor:pointer;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px}
+.zoomrow button:hover{background:var(--accent);border-color:var(--accent);color:#fff}.zoomrow button svg{width:18px;height:18px;fill:currentColor}
+.speed{margin-top:20px}.speed label{font-size:13px;color:var(--muted);display:block;margin-bottom:8px}
+.speed input{width:100%;accent-color:var(--accent)}
+.preset-list{display:flex;flex-direction:column;gap:8px;margin-top:12px;max-height:300px;overflow-y:auto}
+.preset{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--panel2);border:1px solid var(--border);border-radius:10px}
+.preset .nm{flex:1;font-size:13px;font-weight:500}.preset .id{font-size:11px;color:var(--muted)}
+/* input */
+.field{margin-bottom:18px}.field label{display:block;font-size:13px;color:var(--muted);margin-bottom:7px;font-weight:500}
+.field input,.field select{width:100%;background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:11px 14px;color:var(--text);font-size:14px;outline:none}
+.field input:focus,.field select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow)}
+.field .hint{font-size:11px;color:var(--faint);margin-top:6px}
+/* cal */
+.set-grid{display:grid;grid-template-columns:1fr;gap:20px}@media(min-width:900px){.set-grid{grid-template-columns:1fr 1fr}}
+.cal{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:20px;max-width:560px}
+.cal-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}.cal-h h3{font-size:16px;font-weight:700}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}.cal-dow{text-align:center;font-size:11px;color:var(--muted);font-weight:600;padding:6px 0}
+.cal-day{aspect-ratio:1;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:13px;color:var(--muted);position:relative;border:1px solid transparent}
+.cal-day.has{background:var(--panel2);color:var(--text);cursor:pointer;border-color:var(--border)}.cal-day.has:hover{border-color:var(--accent);transform:scale(1.06)}
+.cal-day.today{outline:2px solid var(--accent);outline-offset:-2px}.cal-day .cd{width:5px;height:5px;border-radius:50%;background:var(--accent);margin-top:3px}
+.cal-day .cn{position:absolute;top:3px;right:5px;font-size:9px;color:var(--accent);font-weight:700}
+.console{background:#060a10;border:1px solid var(--border);border-radius:var(--r);font-family:Menlo,Consolas,monospace;font-size:12.5px;line-height:1.7;max-height:70vh;overflow-y:auto;padding:16px 18px}
+.console .ln{white-space:pre-wrap;word-break:break-word;color:#9fb3c8}.console .ln.err{color:var(--red)}.console .ln.ok{color:var(--green)}
+/* modal/lightbox */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.88);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:60;padding:20px;animation:fadeIn .25s}
+.modal.open{display:flex}
+.modal-box{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);max-width:1000px;width:100%;overflow:hidden;animation:zoomIn .3s}
+@keyframes zoomIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+.modal-h{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);gap:12px}
+.modal-h .t{font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}.modal-h .acts{display:flex;gap:8px}
+.modal video{width:100%;background:#000;max-height:66vh;display:block}
+.modal-f{padding:14px 18px;display:flex;gap:14px;align-items:center}.modal-f input[type=range]{flex:1;accent-color:var(--accent)}
+.modal-f .tl{font-size:12px;color:var(--muted);min-width:52px;font-variant-numeric:tabular-nums}
+.x{background:none;border:none;font-size:22px;color:var(--muted);cursor:pointer;padding:4px 8px;border-radius:8px}.x:hover{color:var(--text);background:var(--hover)}
+.lb{position:fixed;inset:0;background:rgba(0,0,0,.95);display:none;z-index:70;animation:fadeIn .25s}.lb.open{display:block}
+.lb-stage{position:absolute;inset:0;overflow:hidden;display:flex;align-items:center;justify-content:center;cursor:grab}.lb-stage.drag{cursor:grabbing}
+.lb-stage img{max-width:92%;max-height:86%;transform-origin:center;transition:transform .12s;user-select:none;-webkit-user-drag:none}
+.lb-top{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;gap:12px;padding:16px 20px;background:linear-gradient(rgba(0,0,0,.6),transparent);z-index:2}
+.lb-top .t{color:#fff;font-size:14px;font-weight:600;flex:1}
+.lb-ctl{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);display:flex;gap:8px;background:rgba(20,26,36,.9);padding:8px;border-radius:14px;border:1px solid var(--border);z-index:2}
+.lb-ctl button{background:var(--panel2);border:1px solid var(--border);color:#fff;width:42px;height:42px;border-radius:10px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center}
+.lb-ctl button:hover{background:var(--accent)}.lb-ctl .z{min-width:60px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px}
+.lb-nav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(20,26,36,.8);border:1px solid var(--border);color:#fff;width:48px;height:48px;border-radius:50%;cursor:pointer;font-size:24px;z-index:2;display:flex;align-items:center;justify-content:center}
+.lb-nav:hover{background:var(--accent)}.lb-prev{left:20px}.lb-next{right:20px}
+.cf-icon{width:64px;height:64px;border-radius:50%;background:rgba(255,149,0,.15);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;animation:zoomIn .3s}
+.cf-icon svg{width:30px;height:30px;fill:var(--accent)}
+.cf-icon.danger{background:rgba(239,68,68,.15)}.cf-icon.danger svg{fill:var(--red)}
+.cf-icon.warn{background:rgba(245,158,11,.15)}.cf-icon.warn svg{fill:var(--amber)}
+#cfInput{width:100%;background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);font-size:15px;outline:none;margin-top:16px;text-align:center}
+#cfInput:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:12px 20px;border-radius:12px;font-size:14px;z-index:90;opacity:0;transition:.3s;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}.toast.ok{border-color:var(--green)}.toast.err{border-color:var(--red)}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:35}.overlay.show{display:block}
+@media(max-width:860px){.sidebar{transform:translateX(-100%)}.sidebar.open{transform:none}.main{margin-left:0}
+  .topbar .mb{display:flex}.content{padding:18px}.topbar{padding:14px 18px}.rec-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+  .gal-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}.topbar .clock{display:none}}
+/* === SAAT — 3 AYRI CHIP === */
+.hdr-clock{display:flex;align-items:center;gap:10px;margin-left:0}
+.hchip{display:flex;align-items:center;gap:7px;padding:7px 13px;border-radius:12px;font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums;border:1px solid;white-space:nowrap;transition:transform .2s,box-shadow .2s}
+.hchip svg{width:14px;height:14px}.hchip .emo{font-size:14px;line-height:1}
+.hchip:hover{transform:translateY(-2px)}
+.hchip.greet{background:linear-gradient(135deg,rgba(245,158,11,.2),rgba(239,68,68,.12));border-color:rgba(245,158,11,.45);color:#fbbf24;box-shadow:0 2px 12px rgba(245,158,11,.15)}
+.hchip.date{background:linear-gradient(135deg,rgba(255,149,0,.2),rgba(240,165,58,.12));border-color:rgba(255,149,0,.45);color:#f5c045;fill:#f5a623;box-shadow:0 2px 12px rgba(255,149,0,.15)}
+.hchip.time{background:linear-gradient(135deg,rgba(34,197,94,.2),rgba(16,185,129,.12));border-color:rgba(34,197,94,.45);color:#4ade80;fill:#22c55e;letter-spacing:1px;box-shadow:0 2px 12px rgba(34,197,94,.15)}
+@media(max-width:1150px){.hchip.greet{display:none}}@media(max-width:920px){.hchip.date{display:none}}
+/* === DEVELOPER KREDİT === */
+.devcredit{display:block;margin-top:12px;padding:10px 12px;border-radius:12px;background:linear-gradient(135deg,rgba(255,149,0,.1),rgba(224,165,58,.08));border:1px solid var(--border);text-decoration:none;transition:.2s}
+.devcredit:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 6px 18px rgba(255,149,0,.18)}
+.devcredit .dc-lbl{display:block;font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:1px}
+.devcredit .dc-name{display:flex;align-items:center;gap:5px;font-size:13px;font-weight:700;background:linear-gradient(90deg,var(--accent),var(--purple));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin-top:2px}
+.devcredit .dc-name svg{width:13px;height:13px;stroke:var(--accent);fill:none;stroke-width:2;flex-shrink:0;transition:transform .2s}
+.devcredit:hover .dc-name svg{transform:translate(2px,-2px)}
+/* === RƏNGLİ UI + HOVER ANİMASİYALAR === */
+.nav a{transition:transform .18s,background .18s,color .18s}
+.nav a:hover{transform:translateX(4px)}
+.nav a:hover svg{transform:scale(1.15)}.nav a svg{transition:transform .18s}
+.nav a.active svg{fill:var(--accent)}
+.card{transition:border-color .2s,box-shadow .2s,transform .2s}
+.card:hover{border-color:rgba(255,149,0,.35)}
+.card-h svg{transition:transform .3s}.card:hover .card-h svg{transform:rotate(-8deg) scale(1.1)}
+.btn{position:relative;overflow:hidden}
+.btn:active{transform:scale(.95)!important}
+.tile{position:relative;overflow:hidden}
+.tile::after{content:"";position:absolute;inset:0;background:linear-gradient(135deg,transparent,rgba(255,255,255,.04));opacity:0;transition:.3s}
+.tile:hover::after{opacity:1}
+.tile .ic{transition:transform .3s}.tile:hover .ic{transform:scale(1.12) rotate(-5deg)}
+.rec:hover .vthumb,.ph:hover img{filter:brightness(1.08)}
+.brand .logo{animation:floaty 3s ease-in-out infinite}
+@keyframes floaty{50%{transform:translateY(-3px)}}
+.badge{transition:.2s}.nav a:hover .badge{background:var(--accent);color:#fff}
+.day-head .di{transition:transform .2s}.day-group:hover .di{transform:scale(1.1)}
+.search input::placeholder{transition:.2s}
+.conn-badge.ok{animation:none}
+.live-badge{box-shadow:0 2px 12px rgba(239,68,68,.4)}
+select:hover,.field input:hover{border-color:var(--accent)}
+.sidebar .nav a.active{box-shadow:inset 0 0 0 1px rgba(255,149,0,.2)}
+/* === HOVER ZOOM (kameralar + videolar) === */
+#mvGrid>div{transition:transform .25s cubic-bezier(.2,.8,.2,1),box-shadow .25s;cursor:pointer}
+#mvGrid>div>div{overflow:hidden}
+#mvGrid>div img{transition:transform .4s cubic-bezier(.2,.8,.2,1)}
+#mvGrid>div:hover{transform:translateY(-4px) scale(1.02);box-shadow:0 14px 34px rgba(0,0,0,.45);z-index:2}
+#mvGrid>div:hover img{transform:scale(1.12)}
+.rec .thumb{overflow:hidden}
+.rec .thumb .vthumb{transition:transform .4s cubic-bezier(.2,.8,.2,1)}
+.rec:hover .thumb .vthumb{transform:scale(1.14)}
+.rec:hover{transform:translateY(-5px) scale(1.015)}
+.ph{transition:transform .25s cubic-bezier(.2,.8,.2,1),box-shadow .25s}
+.ph img{transition:transform .4s cubic-bezier(.2,.8,.2,1)}
+.ph:hover{transform:translateY(-4px) scale(1.02);box-shadow:0 12px 28px rgba(0,0,0,.4);z-index:2}
+.ph:hover img{transform:scale(1.14)}
+.mot img{transition:transform .4s cubic-bezier(.2,.8,.2,1)}
+/* ============ EXPERT POLISH ============ */
+body{font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;background:
+  radial-gradient(1100px 560px at 100% -8%,rgba(255,149,0,.10),transparent 60%),
+  radial-gradient(900px 520px at -8% 108%,rgba(245,192,69,.07),transparent 60%),
+  radial-gradient(700px 500px at 50% 50%,rgba(255,149,0,.03),transparent 70%),var(--bg)}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:linear-gradient(180deg,var(--accent),var(--gold));border-radius:6px;border:2px solid var(--bg)}
+::-webkit-scrollbar-thumb:hover{background:var(--gold)}
+::selection{background:rgba(255,149,0,.3);color:#fff}
+/* sidebar & topbar — glass */
+.sidebar{background:linear-gradient(180deg,rgba(26,20,12,.92),rgba(18,14,8,.92));backdrop-filter:blur(16px) saturate(1.2);box-shadow:4px 0 24px rgba(0,0,0,.3)}
+.topbar{background:rgba(12,10,6,.72);backdrop-filter:blur(14px) saturate(1.2);box-shadow:0 4px 20px rgba(0,0,0,.2)}
+.brand h1{background:linear-gradient(90deg,var(--accent),var(--gold));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-.3px}
+.brand .logo{box-shadow:0 6px 20px var(--glow),inset 0 1px 0 rgba(255,255,255,.2)}
+/* headings gradient */
+.card-h h3{letter-spacing:-.2px}
+.topbar h2{background:linear-gradient(90deg,var(--text),var(--gold));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-.4px;font-weight:800}
+/* cards — depth + glow */
+.card{background:linear-gradient(180deg,rgba(36,26,15,.6),rgba(18,14,8,.5));backdrop-filter:blur(6px);box-shadow:0 10px 34px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.03);border-radius:18px}
+.card:hover{box-shadow:0 16px 44px rgba(0,0,0,.4),0 0 0 1px rgba(255,149,0,.18)}
+.card-h{background:linear-gradient(180deg,rgba(255,149,0,.05),transparent)}
+/* buttons — polished with shine */
+.btn{border-radius:11px;font-weight:600;letter-spacing:.2px}
+.btn.primary{box-shadow:0 6px 18px var(--glow),inset 0 1px 0 rgba(255,255,255,.25)}
+.btn.primary:hover{box-shadow:0 8px 24px var(--glow)}
+.btn::before{content:"";position:absolute;top:0;left:-120%;width:60%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.18),transparent);transform:skewX(-18deg);transition:left .5s}
+.btn:hover::before{left:140%}
+/* tiles — glass + gradient ring on hover */
+.tile{background:linear-gradient(180deg,rgba(40,29,16,.7),rgba(20,15,9,.6));border-radius:16px}
+.tile .val{background:linear-gradient(90deg,var(--text),var(--gold));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-weight:800;letter-spacing:-.5px}
+/* nav active — gradient bar */
+.nav a.active{background:linear-gradient(135deg,rgba(255,149,0,.2),rgba(245,192,69,.07))}
+.nav a.active::before{background:linear-gradient(180deg,var(--accent),var(--gold));box-shadow:0 0 10px var(--accent)}
+.nav .badge{background:linear-gradient(135deg,rgba(255,149,0,.25),rgba(245,192,69,.12));color:var(--gold)}
+/* inputs/selects — refined focus */
+.search input,.field input,.field select,select{border-radius:12px;transition:.2s}
+.search input:focus,.field input:focus,.field select:focus{box-shadow:0 0 0 3px var(--glow);background:var(--panel)}
+/* live badge polish */
+.live-badge{background:linear-gradient(135deg,#ef4444,#dc2626);box-shadow:0 4px 16px rgba(239,68,68,.45)}
+.conn-badge.ok{background:linear-gradient(135deg,#2bb673,#15964f)}
+/* modal glass */
+.modal-box{box-shadow:0 30px 90px rgba(0,0,0,.7),0 0 0 1px rgba(255,149,0,.12);border-radius:20px}
+/* smooth view entrance */
+.view.active{animation:viewIn .45s cubic-bezier(.2,.8,.2,1)}
+@keyframes viewIn{from{opacity:0;transform:translateY(16px) scale(.995)}to{opacity:1;transform:none}}
+/* skeleton shimmer accent */
+.empty svg{animation:floaty 3.5s ease-in-out infinite}
+/* day-group headers */
+.day-head h4{background:linear-gradient(90deg,var(--text),var(--muted));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.day-head .di{background:linear-gradient(135deg,rgba(255,149,0,.2),rgba(245,192,69,.08));border:1px solid rgba(255,149,0,.2)}
+/* rec/photo cards rounder + ring */
+.rec,.ph{border-radius:16px}
+.rec:hover,.ph:hover{box-shadow:0 16px 40px rgba(0,0,0,.45),0 0 0 1px rgba(255,149,0,.25)}
+/* toast polish */
+.toast{border-radius:14px;backdrop-filter:blur(10px);background:rgba(26,20,12,.92);box-shadow:0 10px 36px rgba(0,0,0,.5)}
+.toast.ok{border-color:var(--green)}.toast.err{border-color:var(--red)}
+/* focus-visible accessibility */
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* ============ TAM MOBİL RESPONSIVE ============ */
+html,body{max-width:100vw;overflow-x:hidden}
+img,video,canvas,svg{max-width:100%}
+.topbar{flex-wrap:wrap;row-gap:8px}
+.topbar h2{font-size:clamp(15px,3.5vw,19px);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:1}
+#camSwitch{max-width:42vw}
+@media(max-width:900px){
+  .content{padding:16px}
+  .card-h{flex-wrap:wrap;row-gap:8px}.card-h .tools{flex-wrap:wrap}
+}
+@media(max-width:600px){
+  .content{padding:12px}
+  .topbar{padding:12px 14px;gap:8px}
+  .card-h{padding:13px 15px}.card-h h3{font-size:13px}
+  .card-h .tools{width:100%}.card-h .tools .btn{flex:1;justify-content:center;min-width:0}
+  .btn{font-size:12px;padding:9px 11px}.btn.sm{padding:6px 9px;font-size:11px}
+  .stats{grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px}
+  .tile{padding:14px}.tile .val{font-size:20px}.tile .ic{width:36px;height:36px;margin-bottom:9px}
+  .rec-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+  .gal-grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+  #mvGrid{grid-template-columns:1fr!important}
+  .toolbar{gap:8px}.toolbar .btn{padding:9px 10px}
+  .modal{padding:8px}.modal-box{border-radius:14px}.modal video{max-height:48vh}
+  .modal-h{padding:10px 12px;flex-wrap:wrap;row-gap:6px}.modal-h .acts{flex-wrap:wrap}
+  .lb-top{padding:10px 12px;flex-wrap:wrap}.lb-ctl{bottom:14px}
+  .ptz-pad{max-width:160px}.ptz-ov{flex-direction:column;justify-content:center;padding:12px;gap:12px}
+  .cal{padding:14px}.cal-day{font-size:12px}
+  .set-grid{grid-template-columns:1fr}
+  .hdr-clock .hchip.time{font-size:11px;padding:6px 10px}
+  .devcredit{margin-top:8px}
+}
+@media(max-width:430px){
+  .rec-grid,.gal-grid{grid-template-columns:1fr 1fr!important;gap:8px}
+  .card-h .tools .btn span,.toolbar .btn{font-size:11px}
+  .search input{font-size:13px;padding:10px 12px 10px 38px}
+  .hchip.time .emo{display:none}
+}
+@media(max-width:360px){.rec-grid,.gal-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="overlay" id="overlay" onclick="toggleMenu()"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="logo"><svg viewBox="0 0 24 24"><path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z"/></svg></div>
+      <div class="bt"><h1>Kamera Sistemi</h1><p>Uniview İzləmə</p></div>
+      <button class="rail-toggle" onclick="toggleSidebar()" title="Yan paneli yığ/aç"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
+    <nav class="nav">
+      <a data-v="multiview" class="active" onclick="go('multiview')"><svg viewBox="0 0 24 24"><path d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z"/></svg>Çoxlu Görünüş</a>
+      <a data-v="live" onclick="go('live')"><svg viewBox="0 0 24 24"><path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z"/></svg>Canlı İzləmə</a>
+      <a data-v="events" onclick="go('events')"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 5h-2v6l5 3 1-1.7-4-2.3V7z"/></svg>Hadisələr<span class="badge" id="nEvt">0</span></a>
+      <a data-v="recordings" onclick="go('recordings')"><svg viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm6 4v8l6-4-6-4z"/></svg>Yazılar<span class="badge" id="nRec">0</span></a>
+      <a data-v="photos" onclick="go('photos')"><svg viewBox="0 0 24 24"><path d="M12 15.2A3.2 3.2 0 1 0 12 8.8a3.2 3.2 0 0 0 0 6.4zM9 3L7.2 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3H9z"/></svg>Şəkillər<span class="badge" id="nPho">0</span></a>
+      <a data-v="motion" onclick="go('motion')"><svg viewBox="0 0 24 24"><path d="M13 3a9 9 0 0 0-9 9H1l4 4 4-4H6a7 7 0 1 1 7 7v2a9 9 0 0 0 0-18z"/></svg>Hərəkət Şəkilləri<span class="badge" id="nMot">0</span></a>
+      <a data-v="mvideos" onclick="go('mvideos')"><svg viewBox="0 0 24 24"><path d="M15 8v8H5V8h10m1-2H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4V7a1 1 0 0 0-1-1z"/></svg>Hərəkət Videoları<span class="badge" id="nMvid">0</span></a>
+      <a data-v="dvr" onclick="go('dvr')"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 10V6h-2v8h6v-2h-4z"/></svg>DVR · Keçmiş</a>
+      <a data-v="sounds" onclick="go('sounds')"><svg viewBox="0 0 24 24"><path d="M3 10v4h4l5 5V5L7 10H3zm13.5 2a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></svg>Səslər<span class="badge" id="nSnd">0</span></a>
+      <a data-v="calendar" onclick="go('calendar')"><svg viewBox="0 0 24 24"><path d="M7 2v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7zm12 7v10H5V9h14z"/></svg>Təqvim</a>
+      <a data-v="logs" onclick="go('logs')"><svg viewBox="0 0 24 24"><path d="M4 4h16v2H4V4zm0 4h16v2H4V8zm0 4h10v2H4v-2zm0 4h16v2H4v-2zm0 4h10v2H4v-2z"/></svg>Sistem Logları</a>
+      <a data-v="settings" onclick="go('settings')"><svg viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm8.9 4a7 7 0 0 0-.1-1l2-1.6-2-3.4-2.4 1a7 7 0 0 0-1.7-1l-.4-2.5H9.7l-.4 2.5a7 7 0 0 0-1.7 1l-2.4-1-2 3.4L3.2 11a7 7 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.4 2.5h4.6l.4-2.5a7 7 0 0 0 1.7-1l2.4 1 2-3.4-2-1.6c.1-.3.1-.7.1-1z"/></svg>Ayarlar</a>
+    </nav>
+    <div class="foot"><div class="pill" id="camPill"><span class="dot"></span><span>Yoxlanılır…</span></div><div id="footIp">—</div>
+      <a href="https://facebook.com/hasnaov" target="_blank" rel="noopener" class="devcredit">
+        <span class="dc-lbl">Developed by</span>
+        <span class="dc-name">Goshgar Hasanzadeh<svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H8M17 7v9"/></svg></span>
+      </a></div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <button class="mb btn icon" onclick="toggleSidebar()" title="Menyunu yığ/aç"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg></button>
+      <h2 id="ptitle">Canlı İzləmə</h2>
+      <div class="rec-ind" id="recInd"><span class="d"></span><span id="recIndT">Yazılmır</span></div>
+      <button class="btn icon" onclick="refreshCurrent()" title="Yenilə / Yenidən qoşul" style="margin-left:auto"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 4V1L8 5l4 4V6a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/></svg></button>
+      <select id="camSwitch" onchange="switchCam(this.value)" title="Kamera seç" style="background:var(--panel2);border:1px solid var(--border);border-radius:9px;padding:7px 11px;color:var(--text);font-size:13px;font-weight:600;cursor:pointer"></select>
+      <div class="hdr-clock">
+        <div class="hchip greet" id="greetChip"></div>
+        <div class="hchip date" id="dateChip"></div>
+        <div class="hchip time" id="timeChip"></div>
+      </div>
+    </div>
+    <div class="content">
+      <!-- ÇOXLU GÖRÜNÜŞ -->
+      <section class="view active" id="view-multiview">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:14px">Bütün kameralar eyni anda — birinə toxunub tam ekrana keç</div>
+        <div id="mvGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px"></div>
+      </section>
+
+      <!-- CANLI -->
+      <section class="view" id="view-live">
+        <div class="stats" style="margin-bottom:16px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+          <div class="tile"><div class="ic blue"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 10V7h-2v6h5v-2h-3z"/></svg></div><div class="val" id="netPing">—</div><div class="lbl">İnternet Ping</div></div>
+          <div class="tile"><div class="ic green"><svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg></div><div class="val" id="netDl">—</div><div class="lbl">İnternet Sürəti</div></div>
+          <div class="tile"><div class="ic amber"><svg viewBox="0 0 24 24"><path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z"/></svg></div><div class="val" id="netCam" style="font-size:18px">—</div><div class="lbl">Kamera Bağlantısı</div></div>
+          <div class="tile" style="cursor:pointer" onclick="loadNet(true)"><div class="ic purple"><svg viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/></svg></div><div class="val" style="font-size:16px" id="netBtnT">Test et</div><div class="lbl">Sürəti yenilə</div></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><svg viewBox="0 0 24 24"><path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z"/></svg><h3>Canlı Yayın</h3>
+            <div class="tools">
+              <button class="btn" id="liveTalkBtn"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11h-2z"/></svg>Danış</button>
+              <button class="btn" onclick="playPreset('siren')" title="Sirena">🔊 Sirena</button>
+              <button class="btn" onclick="playPreset('bip')" title="Bip">🔔 Bip</button>
+              <select id="liveSndSel" onchange="if(this.value){playSound(this.value);this.value='';}" title="Öz səslərimi kameradan çal" style="background:var(--panel2);border:1px solid var(--border);border-radius:9px;padding:8px 10px;color:var(--text);font-size:13px;cursor:pointer"><option value="">🔊 Səs çal...</option></select>
+              <button class="btn" id="audioBtn" onclick="toggleAudio()"><svg viewBox="0 0 24 24"><path d="M3 10v4h4l5 5V5L7 10H3z"/></svg>Səsi Aç</button>
+              <span id="volWrap" style="display:none;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:0 12px">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="var(--muted)"><path d="M3 10v4h4l5 5V5L7 10H3zM16 8a4 4 0 0 1 0 8V8z"/></svg>
+                <input type="range" id="vol" min="1" max="10" value="2" style="width:90px;accent-color:var(--accent)" title="Səs səviyyəsi">
+                <b id="volVal" style="font-size:12px;min-width:26px">2×</b></span>
+              <button class="btn" onclick="reloadLive()"><svg viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/></svg>Yenidən Qoşul</button>
+              <button class="btn" onclick="savePhoto()"><svg viewBox="0 0 24 24"><path d="M12 15.2A3.2 3.2 0 1 0 12 8.8a3.2 3.2 0 0 0 0 6.4zM9 3L7.2 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3H9z"/></svg>Şəkil Çək</button>
+              <button class="btn" id="hdBtn" onclick="toggleHd()" title="Yüksək keyfiyyət"><svg viewBox="0 0 24 24"><path d="M3 5h18v14H3V5zm4 4v6h1.5v-2.5h2V15H13V9h-1.5v2H9.5V9H8zm7 0v6h3a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2h-3zm1.5 1.5H17a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-.5v-3z"/></svg>HD</button>
+              <button class="btn" id="aiBtn" onclick="toggleAi()" title="AI obyekt tanıma (insan/pişik/maşın)"><svg viewBox="0 0 24 24"><path d="M12 2a2 2 0 0 1 2 2v1h3a2 2 0 0 1 2 2v3h1a2 2 0 0 1 0 4h-1v3a2 2 0 0 1-2 2h-3v1a2 2 0 0 1-4 0v-1H7a2 2 0 0 1-2-2v-3H4a2 2 0 0 1 0-4h1V7a2 2 0 0 1 2-2h3V4a2 2 0 0 1 2-2zm-3 7v6h2v-2h2v2h2V9h-2v2h-2V9H9z"/></svg>AI Tanıma</button>
+              <button class="btn primary" id="boxBtn" onclick="toggleBox()" title="Hərəkət çərçivəsi"><svg viewBox="0 0 24 24"><path d="M3 5h4V3H3a2 2 0 0 0-2 2v4h2V5zm0 14v-4H1v4a2 2 0 0 0 2 2h4v-2H3zM21 3h-4v2h4v4h2V5a2 2 0 0 0-2-2zm0 16h-4v2h4a2 2 0 0 0 2-2v-4h-2v4zM8 8h8v8H8z"/></svg>Çərçivə</button>
+              <button class="btn" id="ptzBtn" onclick="togglePtz()" title="PTZ idarəetmə"><svg viewBox="0 0 24 24"><path d="M12 2l3 5h-6l3-5zm0 20l-3-5h6l-3 5zM2 12l5-3v6l-5-3zm20 0l-5 3V9l5 3z"/></svg>PTZ</button>
+              <button class="btn icon" onclick="fullscreen()" title="Tam ekran"><svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg></button>
+            </div>
+          </div>
+          <div class="live-wrap">
+            <div class="spinner" id="liveSpin"></div><span class="live-badge"><span class="dot"></span>CANLI</span>
+            <span class="rec-sub" id="recSub"><span class="d"></span>Qeyd aparılır · <b id="liveRecTime">00:00</b></span>
+            <span class="conn-badge ok" id="connBadge"><span class="d"></span><span id="connT">Bağlanır…</span></span>
+            <img id="live" alt=""><canvas id="boxCanvas" class="box-canvas"></canvas><div class="live-ov" id="liveClock"></div>
+            <!-- PTZ açılır panel -->
+            <div class="ptz-ov" id="ptzOv">
+              <button class="ptz-close" onclick="togglePtz(false)">✕</button>
+              <div class="pad-col">
+                <div class="ptz-pad" id="livePad"></div>
+                <div class="zoomrow" id="liveZoom" style="width:100%;max-width:220px"></div>
+                <div class="speed" style="width:100%;max-width:220px;margin-top:4px"><label style="color:#cbd5e1">Sürət: <b id="spdVal">50</b>%</label><input type="range" id="spd" min="10" max="100" value="50"></div>
+              </div>
+              <div class="side">
+                <div class="ttl">Hazır Mövqelər</div>
+                <div class="ptz-preset-row" id="livePresets"></div>
+                <button class="btn sm primary" onclick="savePreset()" style="justify-content:center">+ Bu mövqeyi saxla</button>
+              </div>
+            </div>
+          </div>
+          <div class="card-h" style="border-top:1px solid var(--border);border-bottom:none">
+            <h3 style="font-size:13px;color:var(--muted)">Yazılma İdarəsi</h3>
+            <div class="tools">
+              <button class="btn green" id="recStart" onclick="recStart()"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/></svg>Yazılmanı Başlat</button>
+              <button class="btn red" id="recStop" onclick="recStop()"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>Yazılmanı Dayandır</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- HADİSƏLƏR (Event Timeline) -->
+      <section class="view" id="view-events">
+        <div class="toolbar">
+          <div class="search"><svg viewBox="0 0 24 24"><path d="M15.5 14h-.8l-.3-.3a6.5 6.5 0 1 0-.7.7l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/></svg><input id="evtSearch" placeholder="Tarixə görə axtar..." oninput="renderEvents()"></div>
+          <select id="evtType" onchange="renderEvents()" style="background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:11px;color:var(--text);font-size:14px"><option value="all">Hamısı</option><option value="clip">Videolar</option><option value="photo">Şəkillər</option></select>
+          <label style="display:flex;align-items:center;gap:6px;color:var(--muted);font-size:13px;white-space:nowrap"><input type="checkbox" id="evtAllCams" onchange="loadEvents()" style="accent-color:var(--accent)">Bütün kameralar</label>
+          <button class="btn" onclick="loadEvents()">↻ Yenilə</button>
+        </div>
+        <div id="evtBox"></div>
+      </section>
+
+      <!-- YAZILAR -->
+      <section class="view" id="view-recordings">
+        <div class="toolbar">
+          <div class="search"><svg viewBox="0 0 24 24"><path d="M15.5 14h-.8l-.3-.3a6.5 6.5 0 1 0-.7.7l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/></svg><input id="recSearch" placeholder="Tarixə görə axtar..." oninput="renderRecs()"></div>
+          <button class="btn" onclick="selMode('rec')">☑ Seç</button>
+          <button class="btn" onclick="loadRecs()"><svg viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/></svg>Yenilə</button>
+        </div>
+        <div class="selbar" id="selbar-rec"><span class="cnt" id="selcnt-rec">0 seçildi</span><span class="sp"></span>
+          <button class="btn sm" onclick="selAll('rec')">Hamısını Seç</button>
+          <button class="btn sm red" onclick="delSelected('rec')">Seçilənləri Sil</button>
+          <button class="btn sm danger" onclick="delAll('rec')">Hamısını Sil</button>
+          <button class="btn sm" onclick="selMode('rec',false)">Ləğv et</button>
+        </div>
+        <div id="recBox"></div>
+      </section>
+
+      <!-- ŞƏKİLLƏR -->
+      <section class="view" id="view-photos">
+        <div class="toolbar">
+          <div class="search"><svg viewBox="0 0 24 24"><path d="M15.5 14h-.8l-.3-.3a6.5 6.5 0 1 0-.7.7l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/></svg><input id="phoSearch" placeholder="Tarixə görə axtar..." oninput="renderGal('pho')"></div>
+          <button class="btn primary" onclick="savePhoto()">📷 Yeni Şəkil Çək</button>
+          <button class="btn" onclick="selMode('pho')">☑ Seç</button>
+          <button class="btn" onclick="loadPhotos()">↻ Yenilə</button>
+        </div>
+        <div class="selbar" id="selbar-pho"><span class="cnt" id="selcnt-pho">0 seçildi</span><span class="sp"></span>
+          <button class="btn sm" onclick="selAll('pho')">Hamısını Seç</button><button class="btn sm red" onclick="delSelected('pho')">Seçilənləri Sil</button>
+          <button class="btn sm danger" onclick="delAll('pho')">Hamısını Sil</button><button class="btn sm" onclick="selMode('pho',false)">Ləğv et</button></div>
+        <div id="phoBox"></div>
+      </section>
+
+      <!-- HƏRƏKƏT -->
+      <section class="view" id="view-motion">
+        <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:12px;padding:12px 16px;margin-bottom:18px;font-size:13px;color:var(--amber);display:flex;gap:10px;align-items:center">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+          Kamera qarşısında hərəkət olanda avtomatik şəkil çəkilir. Şəklə toxunub böyüdə və zoom edə bilərsiniz.</div>
+        <div class="toolbar">
+          <div class="search"><svg viewBox="0 0 24 24"><path d="M15.5 14h-.8l-.3-.3a6.5 6.5 0 1 0-.7.7l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/></svg><input id="motSearch" placeholder="Tarixə görə axtar..." oninput="renderGal('mot')"></div>
+          <button class="btn" onclick="selMode('mot')">☑ Seç</button><button class="btn" onclick="loadMotion()">↻ Yenilə</button>
+        </div>
+        <div class="selbar" id="selbar-mot"><span class="cnt" id="selcnt-mot">0 seçildi</span><span class="sp"></span>
+          <button class="btn sm" onclick="selAll('mot')">Hamısını Seç</button><button class="btn sm red" onclick="delSelected('mot')">Seçilənləri Sil</button>
+          <button class="btn sm danger" onclick="delAll('mot')">Hamısını Sil</button><button class="btn sm" onclick="selMode('mot',false)">Ləğv et</button></div>
+        <div id="motBox"></div>
+      </section>
+
+      <!-- HƏRƏKƏT VİDEOLARI -->
+      <section class="view" id="view-mvideos">
+        <div style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);border-radius:12px;padding:12px 16px;margin-bottom:18px;font-size:13px;color:var(--green);display:flex;gap:10px;align-items:center">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+          Hərəkət aşkarlananda ~12 saniyəlik video klip avtomatik yazılır (yüksək keyfiyyət).</div>
+        <div class="toolbar">
+          <div class="search"><svg viewBox="0 0 24 24"><path d="M15.5 14h-.8l-.3-.3a6.5 6.5 0 1 0-.7.7l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/></svg><input id="mvSearch" placeholder="Tarixə görə axtar..." oninput="renderMvids()"></div>
+          <button class="btn" onclick="selMode('mv')">☑ Seç</button><button class="btn" onclick="loadMvids()">↻ Yenilə</button>
+        </div>
+        <div class="selbar" id="selbar-mv"><span class="cnt" id="selcnt-mv">0 seçildi</span><span class="sp"></span>
+          <button class="btn sm" onclick="selAll('mv')">Hamısını Seç</button><button class="btn sm red" onclick="delSelected('mv')">Seçilənləri Sil</button>
+          <button class="btn sm danger" onclick="delAll('mv')">Hamısını Sil</button><button class="btn sm" onclick="selMode('mv',false)">Ləğv et</button></div>
+        <div id="mvBox"></div>
+      </section>
+
+      <!-- SƏSLƏR -->
+      <section class="view" id="view-sounds">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:14px">Öz səslərini yüklə, qeyd et və ya YouTube-dan endir — sonra kompüterdə dinlə / kameradan çal.</div>
+        <div class="card" style="margin-bottom:16px"><div class="card-h"><svg viewBox="0 0 24 24" fill="#ff0000"><path d="M23 12s0-3.5-.4-5.1c-.3-.9-1-1.6-1.9-1.9C19 4.5 12 4.5 12 4.5s-7 0-8.7.5c-.9.3-1.6 1-1.9 1.9C1 8.5 1 12 1 12s0 3.5.4 5.1c.3.9 1 1.6 1.9 1.9 1.7.5 8.7.5 8.7.5s7 0 8.7-.5c.9-.3 1.6-1 1.9-1.9.4-1.6.4-5.1.4-5.1zM9.8 15.3V8.7l5.7 3.3-5.7 3.3z"/></svg><h3>YouTube-dan Səs Endir</h3></div>
+          <div style="padding:16px 20px">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+              <input id="ytUrl" placeholder="YouTube linkini yapışdır (youtube.com/... və ya shorts)" style="flex:2;min-width:220px;background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:11px 14px;color:var(--text);font-size:14px;outline:none">
+              <input id="ytName" placeholder="Ad (istəyə görə)" style="flex:1;min-width:120px;background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:11px 14px;color:var(--text);font-size:14px;outline:none">
+              <input id="ytStart" type="number" min="0" step="1" value="0" title="Başlanğıc saniyə" style="width:90px;background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:11px;color:var(--text);font-size:14px;outline:none">
+              <button class="btn primary" id="ytBtn" onclick="ytDownload()"><svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg>Endir (6 san)</button>
+            </div>
+            <div class="hint" style="margin-top:8px">6 saniyədən uzun olsa avtomatik kəsilir, mp3-ə çevrilir və kameraya uyğunlaşdırılır. Başlanğıc saniyəni dəyişə bilərsən.</div>
+          </div>
+        </div>
+        <div class="toolbar">
+          <button class="btn primary" onclick="$('#sndFile').click()"><svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z" transform="rotate(180 12 11)"/></svg>Səs Yüklə (fayl)</button>
+          <input type="file" id="sndFile" accept="audio/*" style="display:none" onchange="uploadSound(this.files[0])">
+          <button class="btn" id="sndRecBtn" onclick="toggleSndRec()"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/></svg>Qeyd et</button>
+          <span style="display:flex;align-items:center;gap:6px;color:var(--muted);font-size:13px">Təkrar:<select id="sndRepeat" style="background:var(--panel2);border:1px solid var(--border);border-radius:9px;padding:8px 10px;color:var(--text);font-size:13px"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="5">5</option><option value="10">10</option></select></span>
+          <button class="btn" onclick="loadSounds()">↻ Yenilə</button>
+        </div>
+        <div id="pcPlayerBar" style="display:none;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--accent);border-radius:12px;padding:12px 16px;margin-bottom:16px">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="var(--accent)" style="flex-shrink:0"><path d="M3 10v4h4l5 5V5L7 10H3z"/></svg>
+          <span id="pcPlayerName" style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px"></span>
+          <audio id="pcPlayer" controls style="flex:1;min-width:150px;height:36px"></audio>
+          <button class="btn sm" onclick="stopPreview()" title="Durdur">⏹ Dayandır</button>
+        </div>
+        <div id="sndBox"></div>
+      </section>
+
+      <!-- DVR / KEÇMİŞ -->
+      <section class="view" id="view-dvr">
+        <div class="card">
+          <div class="card-h"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 10V6h-2v8h6v-2h-4z"/></svg><h3>DVR — Keçmiş İzləmə</h3>
+            <div class="tools"><input type="date" id="dvrDate" onchange="dvrLoad()" style="background:var(--panel2);border:1px solid var(--border);border-radius:9px;padding:7px 11px;color:var(--text);font-size:13px"></div>
+          </div>
+          <div style="position:relative;background:#000;aspect-ratio:16/9"><video id="dvrPlayer" style="width:100%;height:100%;object-fit:contain;background:#000" playsinline></video>
+            <div id="dvrStamp" style="position:absolute;top:12px;left:12px;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);color:#fff;font-size:14px;font-weight:700;padding:6px 12px;border-radius:8px;font-variant-numeric:tabular-nums;display:none"></div>
+            <div id="dvrEmpty" class="empty" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 10V6h-2v8h6v-2h-4z"/></svg><p>Tarix seçin və zaman xəttinə toxunun</p></div>
+          </div>
+          <div style="padding:18px 20px">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:6px"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>
+            <div id="dvrTrack" style="position:relative;height:46px;background:var(--panel2);border:1px solid var(--border);border-radius:10px;overflow:hidden;cursor:pointer" onclick="dvrSeekClick(event)"></div>
+            <div style="margin-top:10px;font-size:12px;color:var(--muted)" id="dvrInfo">Bu gün üçün yazı axtarılır…</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TƏQVİM -->
+      <section class="view" id="view-calendar">
+        <div class="cal"><div class="cal-h"><button class="btn icon" onclick="calMove(-1)">‹</button><h3 id="calTitle"></h3><button class="btn icon" onclick="calMove(1)">›</button></div><div class="cal-grid" id="calGrid"></div></div>
+      </section>
+
+      <!-- LOGLAR -->
+      <section class="view" id="view-logs">
+        <div class="toolbar"><button class="btn" onclick="loadLogs()">↻ Yenilə</button></div>
+        <div class="console" id="console"><div class="ln">Yüklənir…</div></div>
+      </section>
+
+      <!-- AYARLAR -->
+      <section class="view" id="view-settings">
+        <div class="stats" id="sysStats"></div>
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-h"><svg viewBox="0 0 24 24"><path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z"/></svg><h3>Kameralar</h3><div class="tools"><button class="btn sm primary" onclick="addCamera()">+ Yeni Kamera</button></div></div>
+          <div id="camList"></div>
+        </div>
+        <div class="set-grid">
+          <div class="card">
+            <div class="card-h"><svg viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/></svg><h3>Kamera Konfiqurasiyası</h3></div>
+            <div style="padding:22px">
+              <div class="field"><label>Kamera IP Ünvanı</label><input id="setIp" placeholder="192.168.100.152"></div>
+              <div class="field"><label>Admin İstifadəçi adı</label><input id="setUser" placeholder="admin"></div>
+              <div class="field"><label>Parol</label><input id="setPass" type="password" placeholder="••••••• (dəyişmək üçün yazın)"><div class="hint">Boş buraxsanız mövcud parol saxlanılır.</div></div>
+              <div class="field"><label>Hərəkət Həssaslığı (kiçik = daha həssas)</label><input id="setSens" type="number" step="0.01" min="0.01" max="0.5" placeholder="0.04"></div>
+              <div class="field"><label>Yazılma rejimi</label><select id="setRecMode"><option value="continuous">Davamlı (24/7)</option><option value="motion">Yalnız hərəkət olduqda</option><option value="off">Söndürülmüş</option></select></div>
+              <div class="field"><label>Minimum cisim ölçüsü (kiçik hərəkətləri — yarpaq, kölgə — görməzdən gəl)</label><select id="setMinSize"><option value="small">Kiçik (həssas)</option><option value="medium">Orta (yarpaqları filtrlə)</option><option value="large">Böyük (yalnız insan/maşın)</option></select></div>
+              <div class="field"><label>Hərəkətdə çəkilən şəkil sayı</label><select id="setShots"><option value="1">1 şəkil</option><option value="2">2 şəkil</option><option value="3">3 şəkil</option><option value="dynamic">Dinamik (hərəkət boyunca)</option></select></div>
+              <div class="field"><label>Yazılma Parça Müddəti</label><select id="setSeg"><option value="60">1 dəqiqə</option><option value="300">5 dəqiqə</option><option value="600">10 dəqiqə</option><option value="1800">30 dəqiqə</option><option value="3600">1 saat</option></select></div>
+              <button class="btn primary" onclick="saveSettings()" style="width:100%;justify-content:center;padding:12px"><svg viewBox="0 0 24 24"><path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm3-10H5V5h10v4z"/></svg>Yadda Saxla və Tətbiq Et</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><svg viewBox="0 0 24 24"><path d="M12 15.2A3.2 3.2 0 1 0 12 8.8a3.2 3.2 0 0 0 0 6.4zM9 3L7.2 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3H9z"/></svg><h3>Görüntü Keyfiyyəti</h3><div class="tools"><button class="btn sm" onclick="resetImage()">Sıfırla (128)</button></div></div>
+            <div style="padding:22px">
+              <div class="field"><label>Parlaqlıq (Brightness): <b id="imgBrightnessV">128</b></label><input type="range" id="imgBrightness" min="0" max="255" value="128" style="width:100%;accent-color:var(--accent)"></div>
+              <div class="field"><label>Kontrast (Contrast): <b id="imgContrastV">128</b></label><input type="range" id="imgContrast" min="0" max="255" value="128" style="width:100%;accent-color:var(--accent)"></div>
+              <div class="field"><label>Doyğunluq (Saturation): <b id="imgSaturationV">128</b></label><input type="range" id="imgSaturation" min="0" max="255" value="128" style="width:100%;accent-color:var(--accent)"></div>
+              <div class="field" style="margin-bottom:0"><label>Kəskinlik (Sharpness): <b id="imgSharpnessV">128</b></label><input type="range" id="imgSharpness" min="0" max="255" value="128" style="width:100%;accent-color:var(--accent)"></div>
+              <div class="hint" style="margin-top:12px">Dəyişiklik dərhal kameraya tətbiq olunur və yadda qalır.</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg><h3>Kamera İdarəetmə</h3></div>
+            <div id="camInfo" style="padding:4px 0"></div>
+            <div style="padding:16px 22px;display:flex;gap:10px;flex-wrap:wrap;border-top:1px solid var(--border)">
+              <button class="btn" onclick="syncTime()"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10h-2a8 8 0 1 1-8-8V2z"/></svg>Vaxtı Sinxronla</button>
+              <button class="btn danger" onclick="rebootCam()"><svg viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/></svg>Kameranı Yenidən Başlat</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><svg viewBox="0 0 24 24"><path d="M4 6h16v4H4V6zm0 8h16v4H4v-4z"/></svg><h3>Depolama</h3></div>
+            <div style="padding:22px">
+              <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:10px"><span id="dU" style="color:var(--muted)">—</span><span id="dF" style="color:var(--muted)">—</span></div>
+              <div style="height:14px;background:var(--panel2);border-radius:10px;overflow:hidden"><div id="dBar" style="height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--purple));transition:width 1s"></div></div>
+              <div style="margin-top:14px;font-size:13px;color:var(--muted)" id="dDetail"></div>
+            </div>
+          </div>
+          <div class="card" style="grid-column:1/-1"><div class="card-h"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg><h3>Sistem Məlumatı</h3></div><div id="sysInfo"></div></div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- LIGHTBOX -->
+<div class="lb" id="lb"><div class="lb-top"><span class="t" id="lbT"></span>
+  <button class="btn" onclick="lbDl()"><svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg>Yüklə</button>
+  <button class="btn danger" onclick="lbDel()"><svg viewBox="0 0 24 24"><path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2H8l1-2z"/></svg>Sil</button>
+  <button class="x" onclick="lbClose()">✕</button></div>
+  <button class="lb-nav lb-prev" onclick="lbNav(-1)">‹</button><div class="lb-stage" id="lbStage"><img id="lbImg" alt=""></div><button class="lb-nav lb-next" onclick="lbNav(1)">›</button>
+  <div class="lb-ctl"><button onclick="lbZoom(-.3)">−</button><span class="z" id="lbZ">%100</span><button onclick="lbZoom(.3)">+</button><button onclick="lbReset()">⟲</button></div>
+</div>
+<!-- OYNATICI -->
+<div class="modal" id="modal"><div class="modal-box">
+  <div class="modal-h"><span class="t" id="mT"></span><div class="acts">
+    <button class="btn" onclick="playNav(-1)" title="Sol (əvvəlki video)"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6z"/></svg>Sol</button>
+    <button class="btn" onclick="playNav(1)" title="Sağ (sonrakı video)">Sağ<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6z"/></svg></button>
+    <button class="btn" onclick="dlCur()"><svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg>Yüklə</button>
+    <button class="btn danger" onclick="delCur()"><svg viewBox="0 0 24 24"><path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2H8l1-2z"/></svg>Sil</button><button class="x" onclick="closeModal()">✕</button></div></div>
+  <video id="player" controls autoplay playsinline style="width:100%;background:#000;max-height:72vh;display:block"></video>
+</div></div>
+<!-- BÖYÜK GÖRÜNÜŞ (çoxlu görünüşdən) -->
+<div class="modal" id="bigV" style="z-index:80"><div class="modal-box" style="max-width:1100px">
+  <div class="modal-h"><span class="t" id="bigVName"></span><div class="acts">
+    <button class="btn" id="bigVTalkBtn"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11h-2z"/></svg>Danış</button>
+    <button class="btn" id="bigVAudioBtn" onclick="bigVAudio()"><svg viewBox="0 0 24 24"><path d="M3 10v4h4l5 5V5L7 10H3z"/></svg>Səs</button>
+    <button class="btn" onclick="playPreset('siren')" title="Kameradan sirena çal">🔊 Sirena</button>
+    <button class="btn" onclick="playPreset('bip')" title="Kameradan bip çal">🔔 Bip</button>
+    <select id="bigSndSel" onchange="if(this.value){playSound(this.value);this.value='';}" title="Öz səsimi çal" style="background:var(--panel2);border:1px solid var(--border);border-radius:9px;padding:7px 9px;color:var(--text);font-size:12px;cursor:pointer"><option value="">🔊 Səs...</option></select>
+    <button class="btn" onclick="savePhoto()"><svg viewBox="0 0 24 24"><path d="M12 15.2A3.2 3.2 0 1 0 12 8.8a3.2 3.2 0 0 0 0 6.4zM9 3L7.2 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3H9z"/></svg>Şəkil</button>
+    <button class="btn" id="bigVPtzBtn" onclick="bigVTogglePtz()"><svg viewBox="0 0 24 24"><path d="M12 2l3 5h-6l3-5zm0 20l-3-5h6l-3 5zM2 12l5-3v6l-5-3zm20 0l-5 3V9l5 3z"/></svg>PTZ</button>
+    <button class="btn" id="bigVHdBtn" onclick="bigVToggleHd()"><svg viewBox="0 0 24 24"><path d="M3 5h18v14H3V5zm4 4v6h1.5v-2.5h2V15H13V9h-1.5v2H9.5V9H8zm7 0v6h3a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2h-3z"/></svg>HD</button>
+    <button class="btn" id="bigAiBtn" onclick="toggleAi()"><svg viewBox="0 0 24 24"><path d="M12 2a2 2 0 0 1 2 2v1h3a2 2 0 0 1 2 2v3h1a2 2 0 0 1 0 4h-1v3a2 2 0 0 1-2 2h-3v1a2 2 0 0 1-4 0v-1H7a2 2 0 0 1-2-2v-3H4a2 2 0 0 1 0-4h1V7a2 2 0 0 1 2-2h3V4a2 2 0 0 1 2-2zm-3 7v6h2v-2h2v2h2V9h-2v2h-2V9H9z"/></svg>AI</button>
+    <button class="btn" onclick="bigVFull()"><svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg></button>
+    <button class="x" onclick="closeBigView()">✕</button></div></div>
+  <div style="position:relative;background:#000;aspect-ratio:16/9"><img id="bigVImg" style="width:100%;height:100%;object-fit:contain"><canvas id="bigBoxCanvas" class="box-canvas"></canvas><span class="live-badge" style="font-size:10px"><span class="dot"></span>CANLI</span>
+    <div class="ptz-ov" id="bigPtzOv"><button class="ptz-close" onclick="bigVTogglePtz(false)">✕</button>
+      <div class="pad-col"><div class="ptz-pad" id="bigPad"></div><div class="zoomrow" id="bigZoom" style="width:100%;max-width:220px"></div></div></div>
+  </div>
+</div></div>
+<div class="toast" id="toast"></div>
+<!-- CUSTOM CONFIRM / PROMPT -->
+<div class="modal" id="confirmModal" style="z-index:110"><div class="modal-box" style="max-width:420px">
+  <div style="padding:26px 24px">
+    <div class="cf-icon" id="cfIcon"></div>
+    <h3 id="cfTitle" style="font-size:17px;text-align:center;margin-bottom:8px">Təsdiq</h3>
+    <p id="cfMsg" style="color:var(--muted);font-size:14px;line-height:1.5;white-space:pre-line;text-align:center"></p>
+    <input id="cfInput" placeholder="">
+    <div style="display:flex;gap:10px;margin-top:22px">
+      <button class="btn" id="cfCancel" style="flex:1;justify-content:center;padding:12px">Ləğv et</button>
+      <button class="btn primary" id="cfOk" style="flex:1;justify-content:center;padding:12px">Bəli</button>
+    </div>
+  </div>
+</div></div>
+
+<script>
+const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
+const TITLES={multiview:'Çoxlu Görünüş',live:'Canlı İzləmə',events:'Hadisələr',recordings:'Yazılar',photos:'Şəkillər',motion:'Hərəkət Şəkilləri',mvideos:'Hərəkət Videoları',dvr:'DVR · Keçmiş',sounds:'Səslər',calendar:'Təqvim',logs:'Sistem Logları',settings:'Ayarlar'};
+let RECS=[],MVIDS=[],DATA={pho:[],mot:[]},SEL={rec:new Set(),pho:new Set(),mot:new Set(),mv:new Set()},selOn={rec:false,pho:false,mot:false,mv:false};
+let recActive=false,recSince=null,recMode='continuous';
+function updateRecTime(){const sub=$('#recSub'),lrt=$('#liveRecTime');
+  if(recActive&&recSince){const e=fmt((Date.now()-recSince)/1000);$('#recIndT').textContent='Yazılır · '+e;if(sub)sub.style.display='flex';if(lrt)lrt.textContent=e;}
+  else if(recMode==='motion'){$('#recIndT').textContent='Hərəkətdə yazır';if(sub)sub.style.display='none';}
+  else{$('#recIndT').textContent='Yazılmır';if(sub)sub.style.display='none';}
+  document.querySelectorAll('.live-dur').forEach(el=>{el.textContent='⏺ '+fmt((Date.now()-+el.dataset.start)/1000);});}
+setInterval(updateRecTime,1000);
+function fmt(s){s=Math.max(0,Math.floor(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return(h?pad(h)+':':'')+pad(m)+':'+pad(x);}
+function pad(n){return String(n).padStart(2,'0');}
+function fmtSize(b){const u=['B','KB','MB','GB','TB'];let i=0;while(b>=1024&&i<4){b/=1024;i++}return b.toFixed(1)+' '+u[i];}
+function dayKey(ms){const d=new Date(ms);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+function dayLabel(ms){const t=new Date(),y=new Date(t-864e5);if(dayKey(ms)===dayKey(t))return'Bu gün';if(dayKey(ms)===dayKey(y))return'Dünən';return new Date(ms).toLocaleDateString('az-AZ',{day:'numeric',month:'long',year:'numeric',weekday:'long'});}
+function timeOf(ms){return new Date(ms).toLocaleTimeString('az-AZ',{hour:'2-digit',minute:'2-digit'});}
+function toast(msg,type){const t=$('#toast');t.textContent=msg;t.className='toast show '+(type||'');setTimeout(()=>t.className='toast',2500);}
+/* custom confirm/prompt */
+const CF_SVG={q:'<svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 15a1.2 1.2 0 1 1 0 2.4A1.2 1.2 0 0 1 12 17zm1-3h-2v-1c0-1.5.6-2.1 1.4-2.7.5-.4.6-.6.6-1.1a1 1 0 0 0-2 0H9a3 3 0 1 1 6 0c0 1.2-.5 1.8-1.4 2.5-.5.4-.6.6-.6 1.3z"/></svg>',del:'<svg viewBox="0 0 24 24"><path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2H8l1-2z"/></svg>',warn:'<svg viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>',edit:'<svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>'};
+let cfResolve=null,cfPrompt=false;
+function cfClose(val){$('#confirmModal').classList.remove('open');const r=cfResolve;cfResolve=null;cfPrompt=false;if(r)r(val);}
+function askConfirm(msg,opt={}){return new Promise(res=>{cfResolve=res;cfPrompt=false;
+  $('#cfTitle').textContent=opt.title||'Təsdiq';$('#cfMsg').textContent=msg;$('#cfInput').style.display='none';
+  const ok=$('#cfOk');ok.textContent=opt.okText||'Bəli';ok.className='btn '+(opt.danger?'red':'primary');
+  const ic=$('#cfIcon');ic.className='cf-icon '+(opt.danger?'danger':opt.warn?'warn':'');ic.innerHTML=opt.danger?CF_SVG.del:opt.warn?CF_SVG.warn:CF_SVG.q;
+  $('#confirmModal').classList.add('open');setTimeout(()=>ok.focus(),50);});}
+function askPrompt(msg,def='',opt={}){return new Promise(res=>{cfResolve=res;cfPrompt=true;
+  $('#cfTitle').textContent=opt.title||'Daxil edin';$('#cfMsg').textContent=msg;
+  const inp=$('#cfInput');inp.style.display='block';inp.value=def;inp.placeholder=opt.placeholder||'';
+  const ok=$('#cfOk');ok.textContent=opt.okText||'Yadda saxla';ok.className='btn primary';
+  $('#cfIcon').className='cf-icon';$('#cfIcon').innerHTML=CF_SVG.edit;
+  $('#confirmModal').classList.add('open');setTimeout(()=>{inp.focus();inp.select();},60);});}
+$('#cfOk').addEventListener('click',()=>cfClose(cfPrompt?$('#cfInput').value.trim():true));
+$('#cfCancel').addEventListener('click',()=>cfClose(cfPrompt?null:false));
+$('#confirmModal').addEventListener('click',e=>{if(e.target.id==='confirmModal')cfClose(cfPrompt?null:false);});
+$('#cfInput').addEventListener('keydown',e=>{if(e.key==='Enter')cfClose($('#cfInput').value.trim());if(e.key==='Escape')cfClose(null);});
+document.addEventListener('keydown',e=>{if($('#confirmModal').classList.contains('open')&&e.key==='Escape')cfClose(cfPrompt?null:false);});
+let CAM=localStorage.getItem('cam')||'';let CAMERAS=[];
+function M(url){return url+(url.includes('?')?'&':'?')+'cam='+encodeURIComponent(CAM);}
+async function api(url,opt){try{const r=await fetch(M(url),opt);return await r.json();}catch(e){return{};}}
+async function loadCameras(){CAMERAS=await api('/api/cameras');if(!CAMERAS.length)return;if(!CAM||!CAMERAS.find(c=>c.id===CAM)){CAM=CAMERAS[0].id;localStorage.setItem('cam',CAM);}renderCamSwitch();}
+function renderCamSwitch(){const sel=$('#camSwitch');if(!sel)return;sel.innerHTML=CAMERAS.map(c=>`<option value="${c.id}" ${c.id===CAM?'selected':''}>${c.name}</option>`).join('');}
+function switchCam(id){CAM=id;localStorage.setItem('cam',id);renderCamSwitch();reloadLive();loadStatus();route(curView());toast('Kamera: '+(CAMERAS.find(c=>c.id===id)||{}).name,'ok');}
+function refreshCurrent(){loadStatus();reloadLive();route(curView());toast('Yeniləndi','ok');}
+function renderCamList(){const box=$('#camList');if(!box)return;box.innerHTML=CAMERAS.map(c=>`<div style="display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--border)">
+  <div style="width:34px;height:34px;border-radius:9px;background:var(--panel2);display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="17" height="17" fill="var(--accent)"><path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z"/></svg></div>
+  <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600">${c.name} ${c.id===CAM?'<span style="color:var(--green);font-size:11px">● aktiv</span>':''}</div><div style="font-size:12px;color:var(--muted)">${c.ip} · ${c.user}</div></div>
+  ${c.id!==CAM?`<button class="btn sm" onclick="switchCam('${c.id}')">Keç</button>`:''}
+  <button class="btn sm danger" onclick="delCamera('${c.id}','${c.name}')">Sil</button></div>`).join('');}
+async function addCamera(){
+  const ip=await askPrompt('Kameranın IP ünvanı:','',{title:'Yeni kamera',placeholder:'192.168.1.100'});if(!ip)return;
+  const name=await askPrompt('Kamera adı:','Kamera '+(CAMERAS.length+1),{title:'Yeni kamera'});if(name===null)return;
+  const user=await askPrompt('İstifadəçi adı:','admin',{title:'Yeni kamera'});if(user===null)return;
+  const pass=await askPrompt('Parol:','',{title:'Yeni kamera',placeholder:'kamera parolu'});if(pass===null)return;
+  toast('Kamera əlavə olunur…');const r=await api('/api/cameras',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ip,name,user,pass,segTime:'3600'})});
+  if(r.ok){toast('Kamera əlavə olundu ✓','ok');await loadCameras();renderCamList();}else toast('Xəta: '+(r.err||''),'err');}
+async function delCamera(id,name){if(!await askConfirm('"'+name+'" kamerası silinsin?\nYazıları diskdə qalacaq.',{title:'Kameranı sil',danger:true,okText:'Sil'}))return;
+  const r=await api('/api/cameras/'+id,{method:'DELETE'});if(r.ok){toast('Kamera silindi','ok');if(CAM===id){CAM='';}await loadCameras();renderCamList();loadStatus();}else toast('Xəta: '+(r.err||''),'err');}
+/* ÇOXLU GÖRÜNÜŞ + BÖYÜK GÖRÜNÜŞ */
+let bigViewId=null,bigAudio=null;
+function renderMultiview(){const g=$('#mvGrid');if(!g)return;
+  g.innerHTML=CAMERAS.map(c=>`<div onclick="openBigView('${c.id}')" style="cursor:pointer">
+    <div style="position:relative;background:#000;aspect-ratio:16/9;border-radius:12px;overflow:hidden;border:1px solid var(--border)">
+      <img class="mvcam" data-cam="${c.id}" src="/live.mjpeg?cam=${c.id}&t=${Date.now()}" style="width:100%;height:100%;object-fit:cover" onerror="mvReconnect(this)">
+      <span class="live-badge" style="font-size:10px;padding:4px 9px;left:8px;top:8px;right:auto"><span class="dot"></span>${c.name}</span>
+      <span style="position:absolute;bottom:7px;right:7px;background:rgba(0,0,0,.55);color:#fff;font-size:10px;padding:3px 7px;border-radius:6px">🔍 böyüt</span>
+    </div></div>`).join('');}
+function mvReconnect(img){if(img._rc)return;img._rc=1;setTimeout(()=>{img._rc=0;if(img.isConnected)img.src='/live.mjpeg?cam='+img.dataset.cam+'&t='+Date.now();},2500);}
+// multiview watchdog — donmuş/qopmuş plitələri avtomatik yenidən qoş
+setInterval(()=>{if(!$('#view-multiview')||!$('#view-multiview').classList.contains('active'))return;
+  document.querySelectorAll('#mvGrid img.mvcam').forEach(img=>{if(!img.naturalWidth&&!img._rc)mvReconnect(img);});},12000);
+let bigPadBuilt=false;
+function openBigView(id){bigViewId=id;CAM=id;localStorage.setItem('cam',id);renderCamSwitch();const c=CAMERAS.find(x=>x.id===id)||{};$('#bigVName').textContent=c.name||id;$('#bigVImg').src='/live.mjpeg?cam='+id+'&t='+Date.now();if(!bigPadBuilt){buildPad($('#bigPad'));buildZoom($('#bigZoom'));bigPadBuilt=true;}$('#bigV').classList.add('open');}
+function bigVTogglePtz(f){const o=$('#bigPtzOv'),b=$('#bigVPtzBtn');const open=f===false?false:!o.classList.contains('show');o.classList.toggle('show',open);b.classList.toggle('primary',open);}
+function closeBigView(){$('#bigV').classList.remove('open');$('#bigVImg').src='';if(bigAudio){bigAudio.pause();bigAudio=null;$('#bigVAudioBtn').classList.remove('primary');}talkStop($('#bigVTalkBtn'));}
+function bigVFull(){const e=$('#bigVImg');(e.requestFullscreen||e.webkitRequestFullscreen).call(e);}
+function bigVAudio(){const b=$('#bigVAudioBtn');if(bigAudio){bigAudio.pause();bigAudio=null;b.classList.remove('primary');return;}bigAudio=new Audio('/live.mp3?cam='+bigViewId+'&gain=4&t='+Date.now());bigAudio.play().then(()=>b.classList.add('primary')).catch(()=>{bigAudio=null;toast('Səs alınmadı','err');});}
+async function playPreset(name){toast('Kameraya göndərilir…');const r=await api('/api/playsound?preset='+name+'&repeat='+sndRep(),{method:'POST'});toast(r.ok?'🔊 Kameradan səsləndi ✓':'Alınmadı',r.ok?'ok':'err');}
+let bigHd=false;
+function bigVToggleHd(){bigHd=!bigHd;$('#bigVHdBtn').classList.toggle('primary',bigHd);$('#bigVImg').src='/live.mjpeg?cam='+bigViewId+(bigHd?'&hd=1':'')+'&t='+Date.now();toast(bigHd?'HD açıq':'Standart keyfiyyət');}
+$('#bigV').addEventListener('click',e=>{if(e.target.id==='bigV')closeBigView();});
+/* REAL-TIME DANIŞIQ — basılı tutduqca mikrofon canlı kameraya gedir (WebSocket→backchannel) */
+let talkWS=null,talkCtx=null,talkProc=null,talkSrc=null,talkStream=null,talkBtnEl=null;
+function linearToMulaw(sample){const BIAS=0x84,CLIP=32635;let s=Math.max(-1,Math.min(1,sample))*32767,sign=s<0?0x80:0;if(s<0)s=-s;if(s>CLIP)s=CLIP;s+=BIAS;let exp=7;for(let m=0x4000;(s&m)===0&&exp>0;exp--,m>>=1){}const mant=(s>>(exp+3))&0x0f;return(~(sign|(exp<<4)|mant))&0xff;}
+async function talkStart(btn){if(talkWS)return;talkBtnEl=btn;
+  try{talkStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,channelCount:1}});}catch(e){return toast('Mikrofona icazə verilmədi','err');}
+  const proto=location.protocol==='https:'?'wss':'ws';talkWS=new WebSocket(`${proto}://${location.host}/talk?cam=${encodeURIComponent(CAM)}`);
+  talkWS.onopen=()=>{talkCtx=new (window.AudioContext||window.webkitAudioContext)();talkSrc=talkCtx.createMediaStreamSource(talkStream);
+    talkProc=talkCtx.createScriptProcessor(2048,1,1);const inRate=talkCtx.sampleRate,ratio=inRate/8000;
+    talkProc.onaudioprocess=e=>{if(!talkWS||talkWS.readyState!==1)return;const d=e.inputBuffer.getChannelData(0),outLen=Math.floor(d.length/ratio),out=new Uint8Array(outLen);for(let i=0;i<outLen;i++)out[i]=linearToMulaw(d[Math.floor(i*ratio)]);talkWS.send(out);};
+    const mute=talkCtx.createGain();mute.gain.value=0;talkSrc.connect(talkProc);talkProc.connect(mute);mute.connect(talkCtx.destination);
+    if(btn)btn.classList.add('red');toast('🎤 Canlı danışıq — kameradan real-time səslənir','ok');};
+  talkWS.onclose=()=>cleanupTalk();talkWS.onerror=()=>{toast('Danışıq bağlantısı xətası','err');cleanupTalk();};}
+function cleanupTalk(){try{if(talkProc)talkProc.disconnect();}catch(e){}try{if(talkSrc)talkSrc.disconnect();}catch(e){}try{if(talkCtx)talkCtx.close();}catch(e){}if(talkStream){talkStream.getTracks().forEach(t=>t.stop());talkStream=null;}talkProc=talkSrc=talkCtx=null;talkWS=null;if(talkBtnEl)talkBtnEl.classList.remove('red');}
+function talkStop(){if(talkWS){try{talkWS.close();}catch(e){}}cleanupTalk();}
+function bindTalk(btn){if(!btn)return;const down=e=>{e.preventDefault();talkStart(btn);},up=e=>{e.preventDefault();talkStop();};
+  btn.addEventListener('mousedown',down);btn.addEventListener('mouseup',up);btn.addEventListener('mouseleave',()=>{if(talkWS)talkStop();});
+  btn.addEventListener('touchstart',down,{passive:false});btn.addEventListener('touchend',up,{passive:false});}
+bindTalk($('#bigVTalkBtn'));bindTalk($('#liveTalkBtn'));
+
+const ROUTES=['multiview','live','events','ptz','recordings','photos','motion','mvideos','dvr','sounds','calendar','logs','settings'];
+function go(v){location.hash='#/'+v;} // naviqasiya → URL route dəyişir (hashchange → route)
+function route(v){if(!TITLES[v])v='multiview';
+  $$('.nav a').forEach(a=>a.classList.toggle('active',a.dataset.v===v));
+  $$('.view').forEach(s=>s.classList.toggle('active',s.id==='view-'+v));$('#ptitle').textContent=TITLES[v];
+  if(window.innerWidth<=860)toggleMenu(true);
+  if(v!=='multiview'){const g=$('#mvGrid');if(g)g.innerHTML='';} // başqa səhifədə çoxlu axınları dayandır
+  if(v==='live')loadNet();if(v==='events')loadEvents();
+  if(v==='multiview')renderMultiview();
+  if(v==='recordings')loadRecs();if(v==='photos')loadPhotos();if(v==='motion')loadMotion();if(v==='mvideos')loadMvids();if(v==='dvr')dvrInit();if(v==='sounds')loadSounds();
+  if(v==='calendar')renderCal();if(v==='logs')loadLogs();if(v==='settings'){loadStatus();loadSettings();loadImage();loadCamInfo();renderCamList();}}
+function curView(){return (location.hash.replace(/^#\/?/,'')||'multiview');}
+window.addEventListener('hashchange',()=>route(curView()));
+function togglePtz(f){const ov=$('#ptzOv'),b=$('#ptzBtn');const open=f===false?false:!ov.classList.contains('show');
+  ov.classList.toggle('show',open);b.classList.toggle('primary',open);if(open)loadPresets();}
+function toggleMenu(f){const sb=$('#sidebar'),o=$('#overlay');const open=f===true?false:!sb.classList.contains('open');sb.classList.toggle('open',open);o.classList.toggle('show',open);}
+function toggleSidebar(){if(window.innerWidth<=860){toggleMenu();return;}const app=document.querySelector('.app');const r=app.classList.toggle('rail');try{localStorage.setItem('rail',r?'1':'');}catch(e){}}
+try{if(localStorage.getItem('rail')==='1'&&window.innerWidth>860)document.querySelector('.app').classList.add('rail');}catch(e){}
+$$('.nav a').forEach(a=>{a.title=a.textContent.trim();});
+const AZ_MONTHS=['Yanvar','Fevral','Mart','Aprel','May','İyun','İyul','Avqust','Sentyabr','Oktyabr','Noyabr','Dekabr'];
+const AZ_DAYS=['Bazar','Bazar ertəsi','Çərşənbə axşamı','Çərşənbə','Cümə axşamı','Cümə','Şənbə'];
+function greeting(h){return h>=5&&h<12?'Sabahınız xeyir':h>=12&&h<18?'Günortanız xeyir':'Axşamınız xeyir';}
+function tick(){const d=new Date(),h=d.getHours(),t=pad(h)+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+  const gi=h>=5&&h<12?'🌅':h>=12&&h<18?'☀️':'🌙';
+  const gc=$('#greetChip');if(gc)gc.innerHTML=`<span class="emo">${gi}</span>${greeting(h)}`;
+  const dc=$('#dateChip');if(dc)dc.innerHTML=`<svg viewBox="0 0 24 24"><path d="M7 2v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7zm12 7v10H5V9h14z"/></svg>${AZ_DAYS[d.getDay()]}, ${d.getDate()} ${AZ_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  const tc=$('#timeChip');if(tc)tc.innerHTML=`<svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 10V6h-2v8h6v-2h-4z"/></svg>${t}`;
+  const lc=$('#liveClock');if(lc)lc.textContent=t;}
+setInterval(tick,1000);tick();
+
+/* CANLI */
+let liveReconn=false,boxOn=true;
+function reloadLive(){const i=$('#live'),s=$('#liveSpin');s.style.display='block';i.style.opacity='.25';i.onload=()=>{s.style.display='none';i.style.opacity='1';liveReconn=false;};i.src=M('/live.mjpeg?'+Date.now());}
+$('#live').addEventListener('error',()=>setConn('reconn'));
+function toggleBox(){boxOn=!boxOn;$('#boxBtn').classList.toggle('primary',boxOn);if(!boxOn){const c=$('#boxCanvas');c.getContext('2d').clearRect(0,0,c.width,c.height);}}
+/* bağlantı vəziyyəti */
+let connState='';
+function setConn(s){if(connState===s)return;const prev=connState;connState=s;const b=$('#connBadge');b.className='conn-badge '+s;
+  $('#connT').textContent=s==='ok'?'Bağlantı yaxşı':s==='weak'?'Zəif bağlantı':'Yenidən qoşulur…';
+  if(s==='reconn'){if(prev&&prev!=='reconn')toast('Kamera bağlantısı itdi — yenidən qoşulur…','err');if(!liveReconn){liveReconn=true;$('#liveSpin').style.display='block';setTimeout(reloadLive,1500);}}
+  if(s==='ok'&&prev==='reconn')toast('Kameraya yenidən qoşuldu ✓','ok');}
+/* analiz döngüsü: hərəkət qutusu + bağlantı izləmə */
+const aC=document.createElement('canvas');aC.width=128;aC.height=72;const aX=aC.getContext('2d',{willReadFrequently:true});
+let prevGray=null,lastChange=Date.now();const GW=32,GH=18,CW=4,CH=4;
+function cellsToComponents(act){const comp=[],seen=new Set();
+  const key=(x,y)=>y*GW+x;
+  for(let y=0;y<GH;y++)for(let x=0;x<GW;x++){if(!act.has(key(x,y))||seen.has(key(x,y)))continue;
+    const st=[[x,y]];seen.add(key(x,y));let x0=x,y0=y,x1=x,y1=y,n=0;
+    while(st.length){const[cx,cy]=st.pop();n++;x0=Math.min(x0,cx);y0=Math.min(y0,cy);x1=Math.max(x1,cx);y1=Math.max(y1,cy);
+      [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{const nx=cx+dx,ny=cy+dy;if(nx>=0&&ny>=0&&nx<GW&&ny<GH&&act.has(key(nx,ny))&&!seen.has(key(nx,ny))){seen.add(key(nx,ny));st.push([nx,ny]);}});}
+    if(n>=3)comp.push([x0,y0,x1+1,y1+1]);}
+  return comp;}
+function drawBoxes(gray){const img=$('#live'),c=$('#boxCanvas');const ew=img.clientWidth,eh=img.clientHeight;if(!ew)return;
+  if(c.width!==ew||c.height!==eh){c.width=ew;c.height=eh;}const ctx=c.getContext('2d');ctx.clearRect(0,0,ew,eh);
+  const nw=img.naturalWidth||16,nh=img.naturalHeight||9,sc=Math.min(ew/nw,eh/nh),dw=nw*sc,dh=nh*sc,ox=(ew-dw)/2,oy=(eh-dh)/2;
+  const act=new Set();
+  for(let cy=0;cy<GH;cy++)for(let cx=0;cx<GW;cx++){let d=0;for(let y=0;y<CH;y++)for(let x=0;x<CW;x++){const idx=(cy*CH+y)*128+(cx*CW+x);d+=Math.abs(gray[idx]-prevGray[idx]);}if(d/(CW*CH)>16)act.add(cy*GW+cx);}
+  let comps=cellsToComponents(act).filter(c=>(c[2]-c[0])*(c[3]-c[1])>=6); // kiçik hərəkətləri (yarpaq) at
+  if(!comps.length||comps.length>14)return; // qlobal işıq dəyişikliyi -> göstərmə
+  ctx.strokeStyle='#22c55e';ctx.lineWidth=3;ctx.shadowColor='#22c55e';ctx.shadowBlur=8;ctx.font='bold 12px system-ui';ctx.fillStyle='#22c55e';
+  comps.forEach(([x0,y0,x1,y1])=>{const px=ox+x0/GW*dw,py=oy+y0/GH*dh,pw=(x1-x0)/GW*dw,ph=(y1-y0)/GH*dh;
+    ctx.strokeRect(px,py,pw,ph);ctx.shadowBlur=0;ctx.fillRect(px,py-18,64,16);ctx.fillStyle='#061018';ctx.fillText('Hərəkət',px+5,py-5);ctx.fillStyle='#22c55e';ctx.shadowBlur=8;});}
+setInterval(()=>{
+  if(!$('#view-live').classList.contains('active')||document.hidden)return;
+  const img=$('#live'),now=Date.now();
+  if(!img.naturalWidth){setConn(now-lastChange>=4000?'reconn':now-lastChange>=1200?'weak':connState||'weak');return;}
+  let gray;try{aX.drawImage(img,0,0,128,72);const data=aX.getImageData(0,0,128,72).data;gray=new Float32Array(128*72);for(let i=0,j=0;i<data.length;i+=4,j++)gray[j]=data[i]*.3+data[i+1]*.59+data[i+2]*.11;}catch(e){return;}
+  let gdiff=0;if(prevGray){for(let i=0;i<gray.length;i++)gdiff+=Math.abs(gray[i]-prevGray[i]);gdiff/=gray.length;}else gdiff=99;
+  if(gdiff>0.3){lastChange=now;$('#liveSpin').style.display='none';}
+  const age=now-lastChange;setConn(age>=4000?'reconn':age>=1200?'weak':'ok');
+  if(boxOn&&prevGray)drawBoxes(gray);
+  prevGray=gray;
+},200);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&$('#view-live').classList.contains('active'))reloadLive();});
+/* AI OBYEKT TANIMA (transformers.js — DETR-ResNet-50, daha dəqiq) */
+let aiOn=false,detector=null,aiBusy=false,aiLoading=false;
+const aiCanvas=document.createElement('canvas'),aiCtx=aiCanvas.getContext('2d');
+const AI_LABELS={person:'İnsan',cat:'Pişik',dog:'İt',car:'Maşın',truck:'Yük maşını',bus:'Avtobus',motorcycle:'Motosiklet',bicycle:'Velosiped',bird:'Quş',horse:'At',sheep:'Qoyun',cow:'İnək','traffic light':'Svetofor',backpack:'Çanta','cell phone':'Telefon',handbag:'Çanta',umbrella:'Çətir',bottle:'Şüşə',chair:'Stul'};
+const AI_COLORS={person:'#22c55e',cat:'#ff9500',dog:'#ff9500',bird:'#e0a53a',car:'#f59e0b',truck:'#f59e0b',bus:'#f59e0b',motorcycle:'#f59e0b',bicycle:'#f59e0b'};
+function aiBtns(){return [$('#aiBtn'),$('#bigAiBtn')].filter(Boolean);}
+function clearAi(){[$('#boxCanvas'),$('#bigBoxCanvas')].forEach(c=>{if(c)c.getContext('2d').clearRect(0,0,c.width,c.height);});}
+async function toggleAi(){
+  if(aiOn){aiOn=false;aiBtns().forEach(b=>b.classList.remove('primary'));clearAi();return;}
+  if(!detector){if(aiLoading)return;aiLoading=true;toast('AI model yüklənir (ilk dəfə ~40MB, internet lazımdır)…');
+    try{const TR=await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2');TR.env.allowLocalModels=false;detector=await TR.pipeline('object-detection','Xenova/detr-resnet-50');}catch(e){toast('AI model yüklənmədi (internet?)','err');aiLoading=false;return;}aiLoading=false;}
+  aiOn=true;aiBtns().forEach(b=>b.classList.add('primary'));boxOn=false;$('#boxBtn').classList.remove('primary');toast('AI tanıma açıq ✓ (dəqiq model)','ok');}
+async function aiDetect(img,canvas){if(!aiOn||!detector||aiBusy||!img||!img.naturalWidth)return;aiBusy=true;
+  let out=[];const nw=img.naturalWidth,nh=img.naturalHeight;
+  try{aiCanvas.width=nw;aiCanvas.height=nh;aiCtx.drawImage(img,0,0,nw,nh);const url=aiCanvas.toDataURL('image/jpeg',0.75);out=await detector(url,{threshold:0.6});}catch(e){}aiBusy=false;
+  const ew=img.clientWidth,eh=img.clientHeight;if(!ew)return;if(canvas.width!==ew||canvas.height!==eh){canvas.width=ew;canvas.height=eh;}
+  const ctx=canvas.getContext('2d');ctx.clearRect(0,0,ew,eh);
+  const sc=Math.min(ew/nw,eh/nh),dw=nw*sc,dh=nh*sc,ox=(ew-dw)/2,oy=(eh-dh)/2;
+  (out||[]).forEach(o=>{const b=o.box,col=AI_COLORS[o.label]||'#e0a53a',lbl=(AI_LABELS[o.label]||o.label)+' %'+Math.round(o.score*100);
+    const px=ox+b.xmin/nw*dw,py=oy+b.ymin/nh*dh,pw=(b.xmax-b.xmin)/nw*dw,ph=(b.ymax-b.ymin)/nh*dh;
+    ctx.strokeStyle=col;ctx.lineWidth=3;ctx.shadowColor=col;ctx.shadowBlur=10;ctx.strokeRect(px,py,pw,ph);ctx.shadowBlur=0;
+    ctx.font='bold 13px system-ui';const tw=ctx.measureText(lbl).width+12;ctx.fillStyle=col;ctx.fillRect(px,Math.max(0,py-20),tw,20);ctx.fillStyle='#061018';ctx.fillText(lbl,px+6,Math.max(13,py-6));});}
+setInterval(()=>{if(!aiOn)return;
+  if($('#bigV').classList.contains('open'))aiDetect($('#bigVImg'),$('#bigBoxCanvas'));
+  else if($('#view-live').classList.contains('active'))aiDetect($('#live'),$('#boxCanvas'));},1500);
+let audio=null;
+function audioOn(){const b=$('#audioBtn');b.classList.add('primary');b.innerHTML='<svg viewBox="0 0 24 24"><path d="M3 10v4h4l5 5V5L7 10H3zM16 8a4 4 0 0 1 0 8V8z"/></svg>Səsi Bağla';$('#volWrap').style.display='flex';}
+function audioOff(){const b=$('#audioBtn');b.classList.remove('primary');b.innerHTML='<svg viewBox="0 0 24 24"><path d="M3 10v4h4l5 5V5L7 10H3z"/></svg>Səsi Aç';$('#volWrap').style.display='none';}
+function startAudio(){if(audio){audio.pause();audio=null;}const g=$('#vol').value;audio=new Audio(M('/live.mp3?gain='+g+'&t='+Date.now()));audio.volume=1;audio.play().then(()=>{audioOn();}).catch(()=>{toast('Səs oynatıla bilmədi','err');audio=null;audioOff();});}
+function toggleAudio(){if(audio){audio.pause();audio=null;audioOff();return;}startAudio();toast('Səs açılır…');}
+let volTimer;$('#vol').addEventListener('input',e=>{$('#volVal').textContent=e.target.value+'×';if(audio){clearTimeout(volTimer);volTimer=setTimeout(startAudio,350);}});
+function fullscreen(){const e=$('#live');(e.requestFullscreen||e.webkitRequestFullscreen).call(e);}
+async function savePhoto(){toast('Şəkil çəkilir…');const r=await api('/api/photo/save',{method:'POST'});if(r.ok){toast('Şəkil saxlanıldı ✓','ok');loadPhotos();loadStatus();}else toast('Xəta','err');}
+async function recStart(){await api('/api/recording/start',{method:'POST'});toast('Yazılma başladı','ok');loadStatus();}
+/* HD toggle */
+let hdOn=false;
+function toggleHd(){hdOn=!hdOn;$('#hdBtn').classList.toggle('primary',hdOn);const i=$('#live');$('#liveSpin').style.display='block';i.src=M('/live.mjpeg?'+(hdOn?'hd=1&':'')+Date.now());toast(hdOn?'HD (yüksək keyfiyyət) açıq':'Standart keyfiyyət');}
+/* görüntü keyfiyyəti */
+const IMG_FIELDS=['brightness','contrast','saturation','sharpness'];
+async function loadImage(){const s=await api('/api/image');IMG_FIELDS.forEach(f=>{if(s[f]!=null){$('#img'+cap(f)).value=s[f];$('#img'+cap(f)+'V').textContent=s[f];}});}
+function cap(s){return s[0].toUpperCase()+s.slice(1);}
+let imgTimer;
+IMG_FIELDS.forEach(f=>{const el=document.getElementById('img'+cap(f));if(el)el.addEventListener('input',e=>{$('#img'+cap(f)+'V').textContent=e.target.value;clearTimeout(imgTimer);imgTimer=setTimeout(()=>applyImage(f,+e.target.value),300);});});
+async function applyImage(f,v){const r=await api('/api/image',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({[f]:v})});if(!r.ok)toast('Tətbiq olunmadı','err');}
+async function resetImage(){await api('/api/image',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({brightness:128,contrast:128,saturation:128,sharpness:128})});loadImage();toast('Görüntü sıfırlandı','ok');}
+/* kamera idarə */
+async function loadCamInfo(){const d=await api('/api/camera/info');const rows=[['İstehsalçı',d.manufacturer],['Model',d.model],['Firmware',d.firmware],['Seriya nömrəsi',d.serial],['MAC ünvanı',d.mac],['Kamera IP',d.address]].filter(r=>r[1]);
+  $('#camInfo').innerHTML=rows.map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:10px 22px;border-bottom:1px solid var(--border);font-size:13px"><span style="color:var(--muted)">${k}</span><span style="font-weight:500">${v}</span></div>`).join('')||'<div style="padding:16px 22px;color:var(--muted);font-size:13px">Məlumat alınmadı</div>';}
+async function syncTime(){toast('Vaxt sinxronlaşdırılır…');const r=await api('/api/camera/synctime',{method:'POST'});toast(r.ok?'Kamera vaxtı sinxronlandı ✓':'Alınmadı',r.ok?'ok':'err');}
+async function rebootCam(){if(!await askConfirm('Kamera yenidən başladılsın?\nTəxminən 1 dəqiqə əlçatmaz olacaq.',{title:'Kameranı yenidən başlat',danger:true,okText:'Yenidən başlat'}))return;const r=await api('/api/camera/reboot',{method:'POST'});toast(r.ok?'Kamera yenidən başladılır…':'Alınmadı',r.ok?'ok':'err');}
+async function recStop(){if(!await askConfirm('Yazılma dayandırılsın?',{title:'Yazılmanı dayandır',warn:true,okText:'Dayandır'}))return;await api('/api/recording/stop',{method:'POST'});toast('Yazılma dayandırıldı');loadStatus();}
+
+/* PTZ */
+const PADKEYS=[['upleft','↖'],['up','↑'],['upright','↗'],['left','←'],['home','⌂'],['right','→'],['downleft','↙'],['down','↓'],['downright','↘']];
+function buildPad(el){el.innerHTML=PADKEYS.map(([d,s])=>`<button class="${d==='home'?'home':''}" data-d="${d}">${s}</button>`).join('');
+  el.querySelectorAll('button').forEach(b=>{const d=b.dataset.d;if(d==='home'){b.onclick=()=>ptzHome();return;}
+    const start=e=>{e.preventDefault();ptz('move',d);};const stop=e=>{e.preventDefault();ptz('stop');};
+    b.addEventListener('mousedown',start);b.addEventListener('mouseup',stop);b.addEventListener('mouseleave',e=>{if(e.buttons)stop(e);});
+    b.addEventListener('touchstart',start,{passive:false});b.addEventListener('touchend',stop,{passive:false});});}
+function buildZoom(el){el.innerHTML=`<button data-d="zoomin"><svg viewBox="0 0 24 24"><path d="M11 8v3H8v2h3v3h2v-3h3v-2h-3V8h-2zm1-6a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/></svg>Yaxınlaşdır</button><button data-d="zoomout"><svg viewBox="0 0 24 24"><path d="M8 11v2h8v-2H8zm4-9a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/></svg>Uzaqlaşdır</button>`;
+  el.querySelectorAll('button').forEach(b=>{const d=b.dataset.d;const start=e=>{e.preventDefault();ptz('move',d);};const stop=e=>{e.preventDefault();ptz('stop');};
+    b.addEventListener('mousedown',start);b.addEventListener('mouseup',stop);b.addEventListener('mouseleave',e=>{if(e.buttons)stop(e);});
+    b.addEventListener('touchstart',start,{passive:false});b.addEventListener('touchend',stop,{passive:false});});}
+function ptzSpeed(){return +($('#spd')?.value||50);}
+async function ptz(a,dir){if(a==='stop')return api('/api/ptz/stop',{method:'POST'});
+  await api('/api/ptz/move',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dir,speed:ptzSpeed()})});}
+async function ptzHome(){await api('/api/ptz/preset/goto',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:1})});toast('Əsas mövqeyə gedir');}
+async function loadPresets(){const list=await api('/api/ptz/presets');const box=$('#livePresets');if(!box)return;
+  if(!Array.isArray(list)||!list.length){box.innerHTML='<span style="color:var(--muted);font-size:12px">Hələ mövqe yoxdur</span>';return;}
+  box.innerHTML=list.map(p=>`<span class="pp" onclick="gotoPreset(${p.id})" title="Bu mövqeyə get">📍 ${p.name||'#'+p.id}<b onclick="event.stopPropagation();delPreset(${p.id})" style="margin-left:6px;opacity:.6">✕</b></span>`).join('');}
+async function gotoPreset(id){await api('/api/ptz/preset/goto',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});toast('Mövqeyə gedir ✓','ok');}
+async function savePreset(){const name=await askPrompt('Bu mövqe üçün ad yazın:','Mövqe',{title:'PTZ mövqeyini saxla',okText:'Saxla'});if(!name)return;const r=await api('/api/ptz/preset/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});if(r.ok){toast('Preset saxlanıldı ✓','ok');loadPresets();}else toast('Xəta','err');}
+async function delPreset(id){if(!await askConfirm('Bu hazır mövqe silinsin?',{title:'Preset sil',danger:true,okText:'Sil'}))return;await api('/api/ptz/preset/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});loadPresets();}
+buildPad($('#livePad'));buildZoom($('#liveZoom'));
+$('#spd').addEventListener('input',e=>$('#spdVal').textContent=e.target.value);
+
+/* YAZILAR */
+async function loadRecs(){RECS=await api('/api/recordings');$('#nRec').textContent=RECS.length;renderRecs();}
+function renderRecs(){const q=($('#recSearch').value||'').toLowerCase();const list=RECS.filter(r=>r.name.toLowerCase().includes(q));const box=$('#recBox');
+  if(!list.length){box.innerHTML=emptyBox('record','Hələ yazı yoxdur','Yazılma işləyirsə bir az sonra görünəcək');return;}
+  const g={};list.forEach(r=>{(g[dayKey(r.date)]=g[dayKey(r.date)]||[]).push(r);});
+  box.innerHTML=Object.keys(g).map(k=>{const it=g[k];return `<div class="day-group"><div class="day-head"><div class="di"><svg viewBox="0 0 24 24"><path d="M7 2v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7zm12 7v10H5V9h14z"/></svg></div><h4>${dayLabel(it[0].date)}</h4><span class="c">${it.length} yazı · ${fmtSize(it.reduce((s,i)=>s+i.size,0))}</span></div><div class="rec-grid">${it.map((r,i)=>recCard(r,i)).join('')}</div></div>`;}).join('');}
+function recCard(r,i){const on=SEL.rec.has(r.name);const writing=!r.ready;
+  const durTxt=writing?`<span class="time live-dur" data-start="${r.date}" style="background:rgba(239,68,68,.85)">⏺ ${fmt((Date.now()-r.date)/1000)}</span>`:`<span class="time">${fmt(r.dur||0)}</span>`;
+  return `<div class="rec ${on?'sel':''}" style="animation-delay:${i*30}ms">
+    ${selOn.rec&&!writing?`<div class="chk ${on?'on':''}" onclick="toggleSel('rec','${r.name}')"><svg viewBox="0 0 24 24"><path d="M9 16.2l-3.5-3.5L4 14.2 9 19 20 8l-1.5-1.5z"/></svg></div>`:''}
+    <div class="thumb" onclick="${selOn.rec?`toggleSel('rec','${r.name}')`:(writing?`toast('Bu yazı hələ tamamlanmayıb','err')`:`play('${r.name}')`)}">
+      ${writing?'':`<img class="vthumb" loading="lazy" src="${M('/thumb/rec/'+encodeURIComponent(r.name))}" onerror="this.remove()">`}
+      <div class="pic"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
+      ${writing?'<span class="writing"><span class="d"></span>Yazılır</span>':''}${durTxt}</div>
+    <div class="info"><div class="meta"><div class="nm">${timeOf(r.date)} · ${fmt(r.dur||0)}</div><div class="sb">${fmtSize(r.size)}${writing?' · canlı yazılır':''}</div></div>
+      ${writing?'':`<span class="act" onclick="event.stopPropagation();dl('${r.name}')" title="Yüklə"><svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg></span>
+      <span class="act" onclick="event.stopPropagation();delOne('rec','${r.name}')" title="Sil"><svg viewBox="0 0 24 24"><path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2H8l1-2z"/></svg></span>`}</div></div>`;}
+function emptyBox(ic,t,s){const icons={record:'M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm6 4v8l6-4-6-4z',cam:'M12 15.2A3.2 3.2 0 1 0 12 8.8a3.2 3.2 0 0 0 0 6.4zM9 3L7.2 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3H9z'};return `<div class="empty"><svg viewBox="0 0 24 24"><path d="${icons[ic]}"/></svg><p>${t}</p><div class="sm">${s||''}</div></div>`;}
+
+/* QALEREYA (şəkillər + hərəkət) */
+async function loadPhotos(){DATA.pho=await api('/api/photos');$('#nPho').textContent=DATA.pho.length;renderGal('pho');}
+async function loadMotion(){DATA.mot=await api('/api/motion');$('#nMot').textContent=DATA.mot.length;renderGal('mot');}
+async function loadMvids(){MVIDS=await api('/api/motionvideos');$('#nMvid').textContent=MVIDS.length;renderMvids();}
+function renderMvids(){const q=($('#mvSearch').value||'').toLowerCase();const list=MVIDS.filter(r=>r.name.toLowerCase().includes(q)||dayKey(r.date).includes(q));const box=$('#mvBox');
+  if(!list.length){box.innerHTML=emptyBox('record','Hələ hərəkət videosu yoxdur','Hərəkət olanda avtomatik klip yazılacaq');return;}
+  const g={};list.forEach(r=>{(g[dayKey(r.date)]=g[dayKey(r.date)]||[]).push(r);});
+  box.innerHTML=Object.keys(g).map(k=>{const it=g[k];return `<div class="day-group"><div class="day-head"><div class="di"><svg viewBox="0 0 24 24"><path d="M15 8v8H5V8h10m1-2H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4V7a1 1 0 0 0-1-1z"/></svg></div><h4>${dayLabel(it[0].date)}</h4><span class="c">${it.length} klip</span></div><div class="rec-grid">${it.map((r,i)=>mvCard(r,i)).join('')}</div></div>`;}).join('');}
+function mvCard(r,i){const on=SEL.mv.has(r.name);const writing=!r.ready;
+  return `<div class="rec ${on?'sel':''}" style="animation-delay:${i*30}ms">
+    ${selOn.mv&&!writing?`<div class="chk ${on?'on':''}" onclick="toggleSel('mv','${r.name}')"><svg viewBox="0 0 24 24"><path d="M9 16.2l-3.5-3.5L4 14.2 9 19 20 8l-1.5-1.5z"/></svg></div>`:''}
+    <div class="thumb" onclick="${selOn.mv?`toggleSel('mv','${r.name}')`:(writing?`toast('Klip hələ yazılır','err')`:`play('${r.name}','mv')`)}">
+      ${writing?'':`<img class="vthumb" loading="lazy" src="${M('/thumb/mv/'+encodeURIComponent(r.name))}" onerror="this.remove()">`}
+      <div class="pic"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
+      ${writing?'<span class="writing"><span class="d"></span>Yazılır</span>':`<span class="time">${fmt(r.dur||0)}</span>`}</div>
+    <div class="info"><div class="meta"><div class="nm">${timeOf(r.date)} hərəkəti</div><div class="sb">${fmtSize(r.size)} · ${fmt(r.dur||0)}</div></div>
+      ${writing?'':`<span class="act" onclick="event.stopPropagation();dlMv('${r.name}')" title="Yüklə"><svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg></span>
+      <span class="act" onclick="event.stopPropagation();delOne('mv','${r.name}')" title="Sil"><svg viewBox="0 0 24 24"><path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2H8l1-2z"/></svg></span>`}</div></div>`;}
+function dlMv(name){toast('H.264-ə çevrilir (paylaşıma hazırlanır)…');const a=document.createElement('a');a.href=M('/share/mv/'+encodeURIComponent(name));a.download=name;a.click();}
+function galCfg(k){return k==='pho'?{box:'#phoBox',search:'#phoSearch',serve:'/photo/',empty:['cam','Hələ şəkil yoxdur','"Yeni Şəkil Çək" düyməsi ilə şəkil çəkin']}:{box:'#motBox',search:'#motSearch',serve:'/motion/',empty:['cam','Hələ hərəkət aşkarlanmayıb','Kamera qarşısında hərəkət olanda şəkil çəkiləcək']};}
+function renderGal(k){const c=galCfg(k);const q=($(c.search).value||'').toLowerCase();const list=DATA[k].filter(m=>m.name.toLowerCase().includes(q)||dayKey(m.date).includes(q));const box=$(c.box);
+  if(!list.length){box.innerHTML=emptyBox(c.empty[0],c.empty[1],c.empty[2]);return;}
+  const g={};list.forEach(m=>{(g[dayKey(m.date)]=g[dayKey(m.date)]||[]).push(m);});
+  box.innerHTML=Object.keys(g).map(key=>{const it=g[key];return `<div class="day-group"><div class="day-head"><div class="di"><svg viewBox="0 0 24 24"><path d="M12 15.2A3.2 3.2 0 1 0 12 8.8a3.2 3.2 0 0 0 0 6.4zM9 3L7.2 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3H9z"/></svg></div><h4>${dayLabel(it[0].date)}</h4><span class="c">${it.length} şəkil</span></div><div class="gal-grid">${it.map((m,i)=>galCard(k,m,i)).join('')}</div></div>`;}).join('');}
+function galCard(k,m,i){const c=galCfg(k);const on=SEL[k].has(m.name);const gi=DATA[k].indexOf(m);
+  return `<div class="ph ${on?'sel':''}" style="animation-delay:${i*25}ms" onclick="${selOn[k]?`toggleSel('${k}','${m.name}')`:`lbOpen('${k}',${gi})`}">
+    ${selOn[k]?`<div class="chk ${on?'on':''}"><svg viewBox="0 0 24 24"><path d="M9 16.2l-3.5-3.5L4 14.2 9 19 20 8l-1.5-1.5z"/></svg></div>`:''}
+    <img loading="lazy" src="${M(c.serve+m.name)}" alt="">
+    ${selOn[k]?'':`<span class="act" onclick="event.stopPropagation();delOne('${k}','${m.name}')"><svg viewBox="0 0 24 24"><path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2H8l1-2z"/></svg></span>`}
+    <span class="tm"><span>${new Date(m.date).toLocaleTimeString('az-AZ')}</span><span>${fmtSize(m.size)}</span></span></div>`;}
+
+/* SEÇİM */
+function selMode(k,on){selOn[k]=on===false?false:!selOn[k];if(!selOn[k])SEL[k].clear();$('#selbar-'+k).classList.toggle('show',selOn[k]);reRender(k);updSel(k);}
+function toggleSel(k,name){if(SEL[k].has(name))SEL[k].delete(name);else SEL[k].add(name);updSel(k);reRender(k);}
+function selAll(k){LIST[k]().forEach(x=>{if(k!=='rec'&&k!=='mv'||x.ready!==false)SEL[k].add(x.name);});updSel(k);reRender(k);}
+function updSel(k){$('#selcnt-'+k).textContent=SEL[k].size+' seçildi';}
+function reRender(k){k==='rec'?renderRecs():k==='mv'?renderMvids():renderGal(k);}
+const EP={rec:'/api/recordings',pho:'/api/photos',mot:'/api/motion',mv:'/api/motionvideos'};
+const LIST={rec:()=>RECS,pho:()=>DATA.pho,mot:()=>DATA.mot,mv:()=>MVIDS};
+async function delSelected(k){if(!SEL[k].size)return toast('Heç nə seçilməyib','err');if(!await askConfirm(SEL[k].size+' element silinsin?',{title:'Seçilənləri sil',danger:true,okText:'Sil'}))return;
+  const r=await api(EP[k]+'/batch-delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({names:[...SEL[k]]})});
+  toast((r.deleted||0)+' element silindi','ok');SEL[k].clear();refresh(k);}
+async function delAll(k){const list=LIST[k]();if(!list.length)return;if(!await askConfirm('Hamısı ('+list.length+' ədəd) silinsin?\nBu əməliyyat geri qaytarıla bilməz!',{title:'Hamısını sil',danger:true,okText:'Hamısını sil'}))return;
+  const r=await api(EP[k]+'/batch-delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({all:true})});
+  toast((r.deleted||0)+' element silindi','ok');SEL[k].clear();refresh(k);}
+async function delOne(k,name){if(!await askConfirm('Bu silinsin?\n'+name,{title:'Sil',danger:true,okText:'Sil'}))return;
+  await api(EP[k]+'/'+encodeURIComponent(name),{method:'DELETE'});toast('Silindi');refresh(k);}
+function refresh(k){({rec:loadRecs,pho:loadPhotos,mot:loadMotion,mv:loadMvids}[k])();loadStatus();}
+
+/* OYNATICI — tək native player + sol/sağ keçid */
+let current=null,curKind='rec',navList=[],curIdx=-1;
+const PLAYEP={rec:{p:'/play/',dl:'/share/rec/'},mv:{p:'/mv-play/',dl:'/share/mv/'}};
+function playFile(name){current=name;$('#mT').textContent=name;const v=$('#player');v.src=M(PLAYEP[curKind].p+encodeURIComponent(name));v.play().catch(()=>{});}
+async function play(name,kind='rec'){curKind=kind;$('#modal').classList.add('open');
+  navList=(kind==='rec'?RECS:MVIDS).filter(x=>x.ready!==false);curIdx=navList.findIndex(x=>x.name===name);playFile(name);}
+function playNav(d){if(!navList.length)return;const i=curIdx+d;if(i<0||i>=navList.length)return toast(d>0?'Sonuncu video':'İlk video','err');curIdx=i;playFile(navList[i].name);}
+function closeModal(){const v=$('#player');v.pause();v.src='';$('#modal').classList.remove('open');}
+function dlCur(){if(current){toast('H.264-ə çevrilir…');const a=document.createElement('a');a.href=M(PLAYEP[curKind].dl+encodeURIComponent(current));a.download=current;a.click();}}
+function dl(name){toast('H.264-ə çevrilir (paylaşıma hazırlanır)…');const a=document.createElement('a');a.href=M('/share/rec/'+encodeURIComponent(name));a.download=name;a.click();}
+function delCur(){if(current){closeModal();delOne(curKind,current);}}
+$('#modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal();});
+document.addEventListener('keydown',e=>{if($('#modal').classList.contains('open')){if(e.key==='ArrowLeft')playNav(-1);if(e.key==='ArrowRight')playNav(1);if(e.key==='Escape')closeModal();}});
+
+/* LIGHTBOX */
+let lbKey='pho',lbIdx=0,lbScale=1,lbX=0,lbY=0,lbDrag=false,lbSX=0,lbSY=0,lbSingle=false;
+function lbOpen(k,i){lbSingle=false;lbKey=k;lbIdx=i;lbShow();$('#lb').classList.add('open');}
+function lbShow(){const m=DATA[lbKey][lbIdx];if(!m)return;const c=galCfg(lbKey);$('#lbImg').src=M(c.serve+m.name);$('#lbT').textContent=new Date(m.date).toLocaleString('az-AZ')+' · '+m.name;lbReset();}
+function lbClose(){$('#lb').classList.remove('open');}
+function lbNav(d){if(lbSingle)return;lbIdx=(lbIdx+d+DATA[lbKey].length)%DATA[lbKey].length;lbShow();}
+function lbReset(){lbScale=1;lbX=0;lbY=0;lbApply();}function lbZoom(d){lbScale=Math.min(6,Math.max(1,lbScale+d));if(lbScale===1){lbX=0;lbY=0;}lbApply();}
+function lbApply(){$('#lbImg').style.transform=`translate(${lbX}px,${lbY}px) scale(${lbScale})`;$('#lbZ').textContent='%'+Math.round(lbScale*100);}
+function lbDl(){if(lbSingle){const a=document.createElement('a');a.href=$('#lbImg').src;a.download='hadise.jpg';a.click();return;}const m=DATA[lbKey][lbIdx];const c=galCfg(lbKey);const a=document.createElement('a');a.href=M(c.serve+m.name);a.download=m.name;a.click();}
+async function lbDel(){if(lbSingle){lbClose();return;}const m=DATA[lbKey][lbIdx];if(!await askConfirm('Bu şəkil silinsin?',{title:'Şəkli sil',danger:true,okText:'Sil'}))return;const ep=lbKey==='pho'?'/api/photos/':'/api/motion/';await api(ep+encodeURIComponent(m.name),{method:'DELETE'});lbClose();refresh(lbKey);}
+const lbStage=$('#lbStage');
+lbStage.addEventListener('wheel',e=>{e.preventDefault();lbZoom(e.deltaY<0?.3:-.3);},{passive:false});
+lbStage.addEventListener('mousedown',e=>{if(lbScale<=1)return;lbDrag=true;lbStage.classList.add('drag');lbSX=e.clientX-lbX;lbSY=e.clientY-lbY;});
+window.addEventListener('mousemove',e=>{if(!lbDrag)return;lbX=e.clientX-lbSX;lbY=e.clientY-lbSY;lbApply();});
+window.addEventListener('mouseup',()=>{lbDrag=false;lbStage.classList.remove('drag');});
+lbStage.addEventListener('dblclick',()=>lbScale>1?lbReset():lbZoom(1.5));
+document.addEventListener('keydown',e=>{if(!$('#lb').classList.contains('open'))return;if(e.key==='Escape')lbClose();if(e.key==='ArrowLeft')lbNav(-1);if(e.key==='ArrowRight')lbNav(1);if(e.key==='+'||e.key==='=')lbZoom(.3);if(e.key==='-')lbZoom(-.3);});
+let pinch=0;lbStage.addEventListener('touchmove',e=>{if(e.touches.length===2){e.preventDefault();const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(pinch)lbZoom((d-pinch)/200);pinch=d;}},{passive:false});
+lbStage.addEventListener('touchend',()=>pinch=0);
+
+/* TƏQVİM */
+let calDate=new Date();
+function renderCal(){const y=calDate.getFullYear(),mo=calDate.getMonth();$('#calTitle').textContent=calDate.toLocaleDateString('az-AZ',{month:'long',year:'numeric'});
+  const cnt={};RECS.forEach(r=>{const d=new Date(r.date);if(d.getFullYear()===y&&d.getMonth()===mo)cnt[d.getDate()]=(cnt[d.getDate()]||0)+1;});
+  const first=new Date(y,mo,1).getDay(),dim=new Date(y,mo+1,0).getDate(),off=(first+6)%7;
+  const dows=['B.e','Ç.a','Çər','C.a','Cüm','Şən','Baz'];let h=dows.map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  for(let i=0;i<off;i++)h+='<div class="cal-day"></div>';const tk=dayKey(Date.now());
+  for(let d=1;d<=dim;d++){const c=cnt[d],td=dayKey(new Date(y,mo,d).getTime())===tk;h+=`<div class="cal-day ${c?'has':''} ${td?'today':''}" ${c?`onclick="calPick(${y},${mo},${d})"`:''}>${c?`<span class="cn">${c}</span>`:''}${d}${c?'<span class="cd"></span>':''}</div>`;}
+  $('#calGrid').innerHTML=h;}
+function calMove(n){calDate.setMonth(calDate.getMonth()+n);renderCal();}
+function calPick(y,mo,d){go('recordings');setTimeout(()=>{$('#recSearch').value=`${y}-${pad(mo+1)}-${pad(d)}`;renderRecs();},100);}
+
+/* LOGLAR */
+async function loadLogs(){const d=await api('/api/logs');const c=$('#console');const lines=d.server||[];
+  if(!lines.length){c.innerHTML='<div class="ln">Log yoxdur.</div>';return;}
+  c.innerHTML=lines.map(l=>{const err=/xət|error|fail|401/i.test(l),ok=/başla|ok|yeniləndi|succeed/i.test(l);return `<div class="ln ${err?'err':ok?'ok':''}">${l.replace(/[<>]/g,'')}</div>`;}).join('');c.scrollTop=c.scrollHeight;}
+
+/* AYARLAR + STATUS */
+async function loadSettings(){const s=await api('/api/settings');$('#setIp').value=s.CAM_IP||'';$('#setUser').value=s.CAM_USER||'';$('#setSens').value=s.MOTION_SENS||'0.04';$('#setSeg').value=s.SEG_TIME||'300';$('#setShots').value=s.MOTION_SHOTS||'1';$('#setRecMode').value=s.REC_MODE||'continuous';$('#setMinSize').value=s.MOTION_MINSIZE||'medium';}
+async function saveSettings(){const body={CAM_IP:$('#setIp').value,CAM_USER:$('#setUser').value,MOTION_SENS:$('#setSens').value,SEG_TIME:$('#setSeg').value,MOTION_SHOTS:$('#setShots').value,REC_MODE:$('#setRecMode').value,MOTION_MINSIZE:$('#setMinSize').value};const pw=$('#setPass').value;if(pw)body.CAM_PASS=pw;
+  toast('Yadda saxlanılır…');const r=await api('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(r.ok){toast('Ayarlar saxlanıldı və tətbiq edildi ✓','ok');$('#setPass').value='';setTimeout(()=>{reloadLive();loadStatus();},1500);}else toast('Xəta','err');}
+let lastNet=0,netCache=null;
+async function loadNet(force){
+  try{const cn=await api('/api/camera/net');$('#netCam').textContent=cn.online?('Onlayn'+(cn.wifi&&cn.wifi.signal?' · 📶'+cn.wifi.signal:'')):'Oflayn';}catch(e){}
+  if(!force&&netCache&&Date.now()-lastNet<60000){applyNet(netCache);return;}
+  $('#netBtnT').textContent='Test…';$('#netPing').textContent='…';$('#netDl').textContent='…';
+  const n=await api('/api/net');netCache=n;lastNet=Date.now();applyNet(n);$('#netBtnT').textContent='Yenilə';}
+function applyNet(n){$('#netPing').textContent=(n.ping!=null?n.ping+' ms':'—')+(n.loss?' ·'+n.loss+'%':'');$('#netDl').textContent=(n.download!=null?n.download+' Mbps':'—');}
+async function loadStatus(){const s=await api('/api/status');if(!s.camera)return;
+  const pill=$('#camPill');pill.classList.toggle('on',s.camera.online);pill.querySelector('span:last-child').textContent=s.camera.online?'Kamera onlayn':'Kamera oflayn';$('#footIp').textContent=s.camera.ip+' · :'+s.server.port;
+  $('#nRec').textContent=s.recordings.count;$('#nPho').textContent=s.photos.count;$('#nMot').textContent=s.motion.count;if(s.motionVideos)$('#nMvid').textContent=s.motionVideos.count;
+  recActive=s.recording.active;recSince=s.recording.since;recMode=s.recording.mode||'continuous';
+  $('#recInd').classList.toggle('on',recActive);$('#recStart').disabled=recActive;$('#recStop').disabled=!recActive;updateRecTime();
+  $('#sysStats').innerHTML=tile('blue','video','Yazı',s.recordings.count)+tile('amber','cam','Şəkil',s.photos.count)+tile('purple','cam','Hərəkət',s.motion.count)+tile('green','clock','İş müddəti',fmt(s.server.uptime/1000));
+  if(s.disk&&s.disk.total){const pct=s.disk.used/s.disk.total*100;$('#dBar').style.width=pct.toFixed(1)+'%';$('#dU').textContent='İstifadə: '+fmtSize(s.disk.used)+' (%'+pct.toFixed(0)+')';$('#dF').textContent='Boş: '+fmtSize(s.disk.free);$('#dDetail').textContent='Ümumi disk: '+fmtSize(s.disk.total)+' · Tətbiqin istifadəsi: '+fmtSize(s.totalUsedByApp);}
+  $('#sysInfo').innerHTML=[['Kamera modeli',s.camera.model],['IP ünvanı',s.camera.ip],['İstifadəçi',s.camera.user],['Çözünürlük',s.camera.resolution],['Yazılma qovluğu',s.recordings.dir],['Şəkil qovluğu',s.photos.dir],['Hərəkət qovluğu',s.motion.dir],['Server',s.server.host+' · '+s.server.platform],['Node.js',s.server.node]].map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:11px 20px;border-bottom:1px solid var(--border);font-size:13px"><span style="color:var(--muted)">${k}</span><span style="font-weight:500;text-align:right;word-break:break-all;max-width:60%">${v}</span></div>`).join('');}
+function tile(c,ic,lbl,val){const icons={video:'M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm6 4v8l6-4-6-4z',cam:'M12 15.2A3.2 3.2 0 1 0 12 8.8a3.2 3.2 0 0 0 0 6.4zM9 3L7.2 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3H9z',clock:'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 10V7h-2v6h5v-2h-3z'};return `<div class="tile"><div class="ic ${c}"><svg viewBox="0 0 24 24"><path d="${icons[ic]}"/></svg></div><div class="val">${val}</div><div class="lbl">${lbl}</div></div>`;}
+
+/* HADİSƏLƏR — bütün hərəkət foto+videolarını vahid xronoloji lentdə */
+let EVENTS=[];
+function camName(id){const c=CAMERAS.find(x=>x.id===id);return c?c.name:id;}
+async function loadEvents(){
+  const cams=($('#evtAllCams')&&$('#evtAllCams').checked)?CAMERAS.map(c=>c.id):[CAM];let all=[];
+  for(const cid of cams){
+    const [ph,cl]=await Promise.all([fetch(`/api/motion?cam=${cid}`).then(r=>r.json()).catch(()=>[]),fetch(`/api/motionvideos?cam=${cid}`).then(r=>r.json()).catch(()=>[])]);
+    (ph||[]).forEach(m=>all.push({type:'photo',cam:cid,name:m.name,date:m.date,size:m.size}));
+    (cl||[]).forEach(m=>{if(m.ready!==false)all.push({type:'clip',cam:cid,name:m.name,date:m.date,size:m.size,dur:m.dur});});
+  }
+  all.sort((a,b)=>b.date-a.date);EVENTS=all;$('#nEvt').textContent=all.length;renderEvents();}
+function renderEvents(){
+  const q=($('#evtSearch').value||'').toLowerCase(),tf=$('#evtType').value;
+  const list=EVENTS.filter(e=>(tf==='all'||e.type===tf)&&(e.name.toLowerCase().includes(q)||dayKey(e.date).includes(q)));
+  const box=$('#evtBox');
+  if(!list.length){box.innerHTML=emptyBox('cam','Hələ hadisə yoxdur','Hərəkət olanda foto/video hadisələri burada görünəcək');return;}
+  const g={};list.forEach(e=>{(g[dayKey(e.date)]=g[dayKey(e.date)]||[]).push(e);});
+  box.innerHTML=Object.keys(g).map(k=>{const it=g[k];return `<div class="day-group"><div class="day-head"><div class="di"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 5h-2v6l5 3 1-1.7-4-2.3V7z"/></svg></div><h4>${dayLabel(it[0].date)}</h4><span class="c">${it.length} hadisə</span></div><div class="gal-grid">${it.map((e,i)=>evtCard(e,i)).join('')}</div></div>`;}).join('');}
+function evtCard(e,i){const thumb=e.type==='clip'?`/thumb/mv/${encodeURIComponent(e.name)}?cam=${e.cam}`:`/motion/${encodeURIComponent(e.name)}?cam=${e.cam}`;
+  const badge=e.type==='clip'?'<span style="position:absolute;top:6px;left:6px;background:rgba(34,197,94,.9);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px">▶ VIDEO</span>':'<span style="position:absolute;top:6px;left:6px;background:rgba(245,158,11,.9);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px">📷 FOTO</span>';
+  return `<div class="ph" style="animation-delay:${i*25}ms" onclick="openEvent('${e.type}','${e.cam}','${e.name.replace(/'/g,"\\'")}')">
+    <img loading="lazy" src="${thumb}" onerror="this.style.opacity=.2" alt="">${badge}
+    <span class="tm"><span>${new Date(e.date).toLocaleTimeString('az-AZ')}${($('#evtAllCams')&&$('#evtAllCams').checked)?' · '+camName(e.cam):''}</span><span>${e.type==='clip'?fmt(e.dur||0):fmtSize(e.size)}</span></span></div>`;}
+function openEvent(type,cam,name){if(CAM!==cam){CAM=cam;localStorage.setItem('cam',cam);renderCamSwitch();}
+  if(type==='clip'){navList=[];curIdx=-1;curKind='mv';current=name;$('#mT').textContent=name;$('#modal').classList.add('open');const v=$('#player');v.src=M('/mv-play/'+encodeURIComponent(name));v.play().catch(()=>{});}
+  else{evtViewImg('/motion/'+encodeURIComponent(name)+'?cam='+cam,name);}}
+function evtViewImg(url,caption){lbSingle=true;$('#lbImg').src=url;$('#lbT').textContent=caption;lbScale=1;lbX=0;lbY=0;lbApply();$('#lb').classList.add('open');}
+/* SƏSLƏR — yüklə / qeyd et / kameradan çal */
+let SOUNDS=[];
+let favSounds=new Set(JSON.parse(localStorage.getItem('favSounds')||'[]'));
+function isFav(n){return favSounds.has(n);}
+function toggleFav(n){if(favSounds.has(n))favSounds.delete(n);else favSounds.add(n);localStorage.setItem('favSounds',JSON.stringify([...favSounds]));loadSounds();}
+async function renameSound(name){const nn=await askPrompt('Yeni ad:',name.replace(/\.[^.]+$/,''),{title:'Səsi adlandır'});if(!nn)return;const r=await api('/api/sounds/rename',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from:name,to:nn})});if(r.ok){if(favSounds.has(name)){favSounds.delete(name);favSounds.add(r.name);localStorage.setItem('favSounds',JSON.stringify([...favSounds]));}toast('Adı dəyişdi ✓','ok');loadSounds();}else toast('Alınmadı','err');}
+async function loadSounds(){SOUNDS=await api('/api/sounds');$('#nSnd').textContent=SOUNDS.length;refreshSoundPickers();
+  SOUNDS.sort((a,b)=>(isFav(b.name)?1:0)-(isFav(a.name)?1:0)||b.date-a.date); // favoritlər öndə
+  const box=$('#sndBox');if(!SOUNDS.length){box.innerHTML='<div class="empty"><svg viewBox="0 0 24 24"><path d="M3 10v4h4l5 5V5L7 10H3z"/></svg><p>Hələ səs yoxdur</p><div class="sm">Yüklə və ya qeyd et</div></div>';return;}
+  box.innerHTML='<div class="rec-grid">'+SOUNDS.map(s=>{const n=s.name.replace(/'/g,"\\'");const fav=isFav(s.name);return `<div class="rec"><div style="padding:14px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><div style="width:38px;height:38px;border-radius:10px;background:var(--panel2);display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg viewBox="0 0 24 24" width="19" height="19" fill="var(--accent)"><path d="M3 10v4h4l5 5V5L7 10H3z"/></svg></div>
+      <div style="flex:1;min-width:0"><div class="nm">${s.name}</div><div class="sb">${fmtSize(s.size)}</div></div>
+      <span class="act" onclick="toggleFav('${n}')" title="Favorit" style="color:${fav?'#f59e0b':'var(--faint)'}"><svg viewBox="0 0 24 24"><path d="M12 2l3 7h7l-5.5 4.5L18.5 22 12 17.5 5.5 22l2-8.5L2 9h7z"/></svg></span>
+      <span class="act" onclick="renameSound('${n}')" title="Adını dəyiş"><svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></span></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn sm" style="flex:1;justify-content:center" onclick="previewSound('${n}')"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>💻 PC</button>
+      <button class="btn sm green" style="flex:1;justify-content:center" onclick="playSound('${n}')"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>📷 Kamera</button>
+      <button class="btn sm danger" style="justify-content:center" onclick="delSound('${n}')" title="Sil"><svg viewBox="0 0 24 24"><path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2H8l1-2z"/></svg></button>
+    </div></div></div>`;}).join('')+'</div>';}
+async function ytDownload(){const url=$('#ytUrl').value.trim();if(!url)return toast('YouTube linkini yapışdır','err');
+  const b=$('#ytBtn');b.disabled=true;b.textContent='Endirilir…';toast('YouTube-dan endirilir, bir az gözləyin…');
+  const body={url,name:$('#ytName').value.trim(),start:+$('#ytStart').value||0};
+  let r={};try{r=await(await fetch('/api/sounds/youtube',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})).json();}catch(e){}
+  b.disabled=false;b.innerHTML='<svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg>Endir (6 san)';
+  if(r.ok){toast('✓ Endirildi: '+r.name,'ok');$('#ytUrl').value='';$('#ytName').value='';loadSounds();}else toast('Alınmadı: '+(r.err||''),'err');}
+function previewSound(name){const p=$('#pcPlayer');$('#pcPlayerBar').style.display='flex';$('#pcPlayerName').textContent=name;p.src='/sound/'+encodeURIComponent(name);p.play().catch(()=>toast('Dinlənilmədi','err'));toast('Kompüterdə çalınır ♪ — play/pause/seek player-də');}
+function stopPreview(){const p=$('#pcPlayer');try{p.pause();p.currentTime=0;}catch(e){}$('#pcPlayerBar').style.display='none';}
+function refreshSoundPickers(){const opts='<option value="">🔊 Səs çal...</option>'+SOUNDS.map(s=>`<option value="${s.name}">${s.name}</option>`).join('');['#liveSndSel','#bigSndSel'].forEach(id=>{const el=$(id);if(el)el.innerHTML=opts;});}
+async function uploadSound(file){if(!file)return;const name=file.name;toast('Yüklənir…');
+  try{await fetch('/api/sounds/upload?name='+encodeURIComponent(name),{method:'POST',body:file});toast('Yükləndi ✓','ok');loadSounds();}catch(e){toast('Xəta','err');}}
+function sndRep(){return ($('#sndRepeat')&&$('#sndRepeat').value)||'1';}
+async function playSound(name){toast('Kameraya göndərilir…');const r=await api('/api/sounds/play?name='+encodeURIComponent(name)+'&repeat='+sndRep(),{method:'POST'});toast(r.ok?'🔊 Kameradan səsləndi ✓':'Alınmadı',r.ok?'ok':'err');}
+async function delSound(name){if(!await askConfirm(name+' silinsin?',{title:'Səsi sil',danger:true,okText:'Sil'}))return;await fetch('/api/sounds/'+encodeURIComponent(name),{method:'DELETE'});loadSounds();}
+let sndRec=null,sndStream=null,sndChunks=[];
+async function toggleSndRec(){const b=$('#sndRecBtn');if(sndRec){try{sndRec.stop();}catch(e){}return;}
+  try{sndStream=await navigator.mediaDevices.getUserMedia({audio:true});}catch(e){return toast('Mikrofon icazəsi yoxdur','err');}
+  sndChunks=[];sndRec=new MediaRecorder(sndStream);sndRec.ondataavailable=e=>{if(e.data.size)sndChunks.push(e.data);};
+  sndRec.onstop=async()=>{sndStream.getTracks().forEach(t=>t.stop());const blob=new Blob(sndChunks);sndRec=null;b.classList.remove('red');b.innerHTML='<svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/></svg>Qeyd et';
+    const nm=await askPrompt('Səsə ad verin:','mesaj_'+Date.now(),{title:'Səsi saxla'});if(!nm)return;toast('Saxlanılır…');await fetch('/api/sounds/upload?name='+encodeURIComponent(nm+'.webm'),{method:'POST',body:blob});toast('Saxlanıldı ✓','ok');loadSounds();};
+  sndRec.start();b.classList.add('red');b.innerHTML='<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>Dayandır';toast('Qeyd olunur… (dayandır düyməsinə basın)');}
+/* DVR · saat-be-saat keçmiş */
+let dvrSegs=[],dvrDayStart=0,dvrSeg=null,dvrBase=0;
+async function dvrInit(){const d=$('#dvrDate');if(!d.value){const n=new Date();d.value=n.getFullYear()+'-'+pad(n.getMonth()+1)+'-'+pad(n.getDate());}if(!RECS.length)await loadRecs();dvrLoad();}
+async function dvrLoad(){
+  const val=$('#dvrDate').value;if(!val)return;const [Y,M,D]=val.split('-').map(Number);dvrDayStart=new Date(Y,M-1,D,0,0,0).getTime();const dayEnd=dvrDayStart+864e5;
+  if(!RECS.length)RECS=await api('/api/recordings');
+  dvrSegs=RECS.filter(r=>r.date>=dvrDayStart&&r.date<dayEnd&&r.dur>0).map(r=>({name:r.name,start:r.date,dur:r.dur})).sort((a,b)=>a.start-b.start);
+  const track=$('#dvrTrack');track.querySelectorAll('.dvr-blk,.dvr-head').forEach(e=>e.remove());
+  dvrSegs.forEach(s=>{const left=(s.start-dvrDayStart)/864e5*100,w=Math.max(0.3,s.dur*1000/864e5*100);const b=document.createElement('div');b.className='dvr-blk';b.style.cssText=`position:absolute;top:0;bottom:0;left:${left}%;width:${w}%;background:linear-gradient(var(--green),#16a34a);opacity:.85`;track.appendChild(b);});
+  // saat xətləri
+  for(let h=0;h<24;h+=3){const l=document.createElement('div');l.className='dvr-head';l.style.cssText=`position:absolute;top:0;bottom:0;left:${h/24*100}%;width:1px;background:var(--border)`;track.appendChild(l);}
+  $('#dvrInfo').textContent=dvrSegs.length?`${dvrSegs.length} yazı · toplam ${fmt(dvrSegs.reduce((a,s)=>a+s.dur,0))} · zaman xəttinə toxunub izləyin`:'Bu gün üçün yazı yoxdur';
+}
+function dvrSeekClick(e){const t=$('#dvrTrack'),rect=t.getBoundingClientRect();const frac=Math.min(1,Math.max(0,(e.clientX-rect.left)/rect.width));const target=dvrDayStart+frac*864e5;
+  let seg=dvrSegs.find(s=>target>=s.start&&target<s.start+s.dur*1000);let off=0;
+  if(seg){off=(target-seg.start)/1000;}else{seg=dvrSegs.find(s=>s.start>=target);if(seg)off=0;}
+  if(!seg)return toast('Bu zamanda yazı yoxdur','err');dvrPlay(seg,off);}
+function dvrPlay(seg,off){dvrSeg=seg;dvrBase=off;$('#dvrEmpty').style.display='none';$('#dvrStamp').style.display='block';
+  const v=$('#dvrPlayer');v.src=M('/play/'+encodeURIComponent(seg.name)+(off>0?'?t='+Math.floor(off):''));v.play().catch(()=>{});}
+const dvrV=$('#dvrPlayer');
+dvrV.addEventListener('timeupdate',()=>{if(!dvrSeg)return;const t=new Date(dvrSeg.start+(dvrBase+dvrV.currentTime)*1000);$('#dvrStamp').textContent=t.toLocaleDateString('az-AZ')+' '+t.toLocaleTimeString('az-AZ');
+  const ph=(dvrSeg.start-dvrDayStart+(dvrBase+dvrV.currentTime)*1000)/864e5*100;let pl=$('#dvrPlayhead');if(!pl){pl=document.createElement('div');pl.id='dvrPlayhead';pl.style.cssText='position:absolute;top:-3px;bottom:-3px;width:2px;background:#fff;box-shadow:0 0 6px #fff;z-index:5';$('#dvrTrack').appendChild(pl);}pl.style.left=ph+'%';});
+dvrV.addEventListener('ended',()=>{const i=dvrSegs.indexOf(dvrSeg);if(i>=0&&i+1<dvrSegs.length)dvrPlay(dvrSegs[i+1],0);});
+
+/* INIT */
+loadCameras().then(()=>{reloadLive();loadStatus();loadSounds();route(curView());});
+setInterval(loadStatus,5000);
+setInterval(()=>{if($('#view-logs').classList.contains('active'))loadLogs();},5000);
+</script>
+</body>
+</html>

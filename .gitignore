@@ -1,0 +1,22 @@
+# dependencies
+web/node_modules/
+
+# media & runtime data (recordings, motion, sounds, ring buffer)
+media/
+sesler/
+videolar/
+hareket/
+hareket_video/
+resimler/
+
+# logs
+*.log
+web/server.log
+
+# secrets / local config (contain camera credentials)
+.env
+cameras.json
+auth.json
+
+# os
+.DS_Store
