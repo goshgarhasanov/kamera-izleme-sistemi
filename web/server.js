@@ -173,19 +173,24 @@ function captureMotion(cam, comps, count = 1) {
 // hərəkət anında: ring-buferdən PRE + POST saniyələri birləşdir (gecikməsiz, hadisədən əvvəlki anlar daxil)
 function recordMotionClip(cam) {
   const S = mState[cam.id];
-  if (S.clipPending) return; if (Date.now() - S.lastClip < CLIP_GAP) return; S.lastClip = Date.now(); S.clipPending = true;
-  const T = Date.now(); const fn = `hv_${stamp()}.mp4`;
+  if (S.clipPending) return; // artıq klip yazılır (onsuz da bu dövrü əhatə edir) — yoxsa HƏR hərəkətdə yaz
+  S.lastClip = Date.now(); S.clipPending = true;
+  const T = Date.now(), fn = `hv_${stamp()}.mp4`, out = path.join(dirOf(cam, 'hareket_video'), fn);
+  // birbaşa yazma fallback (ring boş/xarab olsa belə klip HƏMİŞƏ yaransın)
+  const directRecord = () => {
+    const ff = spawn('ffmpeg', ['-nostdin', '-loglevel', 'error', '-rtsp_transport', 'tcp', '-i', mainUrl(cam), '-t', '30', '-c:v', 'copy', '-c:a', 'aac', '-movflags', '+faststart', out], { stdio: ['ignore', 'ignore', 'ignore'] });
+    ff.on('error', () => {});
+  };
   setTimeout(() => {
     S.clipPending = false; const rd = ringDir(cam);
     let segs = [];
     try { segs = fs.readdirSync(rd).filter(f => f.endsWith('.ts')).map(f => ({ fp: path.join(rd, f), m: fs.statSync(path.join(rd, f)).mtimeMs })).filter(x => x.m >= T - PRE_MS && x.m <= Date.now() - 1500).sort((a, b) => a.m - b.m); } catch (e) {}
-    if (!segs.length) return; // ring hələ hazır deyil
+    if (segs.length < 2) { log(`[${cam.id}] ring boş — birbaşa yazma`); return directRecord(); } // fallback
     const list = path.join(os.tmpdir(), 'cc_' + cam.id + '_' + Date.now() + '.txt');
-    try { fs.writeFileSync(list, segs.map(s => `file '${s.fp.replace(/'/g, "'\\''")}'`).join('\n')); } catch (e) { return; }
-    const out = path.join(dirOf(cam, 'hareket_video'), fn);
+    try { fs.writeFileSync(list, segs.map(s => `file '${s.fp.replace(/'/g, "'\\''")}'`).join('\n')); } catch (e) { return directRecord(); }
     const ff = spawn('ffmpeg', ['-nostdin', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', '-movflags', '+faststart', out], { stdio: ['ignore', 'ignore', 'ignore'] });
-    const done = () => { try { fs.unlinkSync(list); } catch (e) {} };
-    ff.on('exit', done); ff.on('error', done);
+    const done = (code) => { try { fs.unlinkSync(list); } catch (e) {} try { if ((code !== 0 || !fs.existsSync(out) || fs.statSync(out).size < 10000)) directRecord(); } catch (e) {} };
+    ff.on('exit', done); ff.on('error', () => done(1));
   }, POST_MS);
 }
 function startCam(cam) { ensureCamDirs(cam); if (cam.recMode !== 'off') startMotion(cam); if (cam.recMode === 'continuous') startRec(cam); }
