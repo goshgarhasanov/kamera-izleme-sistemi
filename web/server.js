@@ -94,7 +94,7 @@ function startRec(cam) {
   if (recProcs[cam.id]) return;
   recState[cam.id] = { enabled: true, since: Date.now() };
   const out = path.join(dirOf(cam, 'videolar'), 'kamera_%Y-%m-%d_%H-%M-%S.mp4');
-  const ff = spawn('ffmpeg', ['-nostdin', '-loglevel', 'error', '-rtsp_transport', 'tcp', '-i', mainUrl(cam),
+  const ff = spawn('ffmpeg', ['-nostdin', '-loglevel', 'error', '-rtsp_transport', 'tcp', '-timeout', '20000000', '-i', mainUrl(cam),
     '-c:v', 'copy', '-c:a', 'aac', '-f', 'segment', '-segment_time', cam.segTime, '-reset_timestamps', '1', '-strftime', '1', out], { stdio: ['ignore', 'ignore', 'ignore'] });
   recProcs[cam.id] = ff;
   ff.on('exit', () => { recProcs[cam.id] = null; if (recState[cam.id] && recState[cam.id].enabled) setTimeout(() => { const c = getCam(cam.id); if (c) startRec(c); }, 5000); });
@@ -110,7 +110,7 @@ const MW = 128, MH = 72, MGW = 32, MGH = 18, MCW = 4, MCH = 4, MOTION_COOLDOWN =
 function ringDir(cam) { return path.join(dirOf(cam, 'hareket_video'), '.ring'); }
 function startRing(cam) {
   if (ringProcs[cam.id]) return; const rd = ringDir(cam); try { fs.mkdirSync(rd, { recursive: true }); } catch (e) {}
-  const ff = spawn('ffmpeg', ['-nostdin', '-loglevel', 'error', '-rtsp_transport', 'tcp', '-i', mainUrl(cam),
+  const ff = spawn('ffmpeg', ['-nostdin', '-loglevel', 'error', '-rtsp_transport', 'tcp', '-timeout', '20000000', '-i', mainUrl(cam),
     '-c:v', 'copy', '-c:a', 'aac', '-f', 'segment', '-segment_time', '2', '-segment_wrap', '20', '-reset_timestamps', '1', path.join(rd, 'r%03d.ts')], { stdio: ['ignore', 'ignore', 'ignore'] });
   ringProcs[cam.id] = ff;
   ff.on('exit', () => { ringProcs[cam.id] = null; const c = getCam(cam.id); if (c && c.recMode !== 'off') setTimeout(() => startRing(c), 5000); });
@@ -122,11 +122,11 @@ function startMotion(cam) {
   const S = mState[cam.id] = mState[cam.id] || { lastCapture: 0, capturing: false, lastClip: 0 }; S.prev = null;
   const rd = ringDir(cam); try { fs.mkdirSync(rd, { recursive: true }); } catch (e) {}
   // TƏK bağlantı, iki çıxış: (1) hərəkət üçün gray kadrlar (2) pre-record ring segmentləri
-  const ff = spawn('ffmpeg', ['-nostdin', '-loglevel', 'error', '-rtsp_transport', 'tcp', '-i', subUrl(cam),
+  const ff = spawn('ffmpeg', ['-nostdin', '-loglevel', 'error', '-rtsp_transport', 'tcp', '-timeout', '20000000', '-i', subUrl(cam),
     '-map', '0:v', '-vf', `scale=${MW}:${MH},format=gray`, '-r', '5', '-f', 'rawvideo', '-pix_fmt', 'gray', 'pipe:1',
     '-map', '0', '-c:v', 'copy', '-c:a', 'aac', '-f', 'segment', '-segment_time', '2', '-segment_wrap', '32', '-reset_timestamps', '1', path.join(rd, 'r%03d.ts')], { stdio: ['ignore', 'pipe', 'ignore'] });
-  motionProcs[cam.id] = ff; let acc = Buffer.alloc(0); const FS = MW * MH;
-  ff.stdout.on('data', chunk => { acc = acc.length ? Buffer.concat([acc, chunk]) : chunk; while (acc.length >= FS) { const frame = Buffer.from(acc.subarray(0, FS)); acc = acc.subarray(FS); analyzeFrame(cam, frame); } });
+  motionProcs[cam.id] = ff; let acc = Buffer.alloc(0); const FS = MW * MH; S.lastFrame = Date.now();
+  ff.stdout.on('data', chunk => { S.lastFrame = Date.now(); acc = acc.length ? Buffer.concat([acc, chunk]) : chunk; while (acc.length >= FS) { const frame = Buffer.from(acc.subarray(0, FS)); acc = acc.subarray(FS); analyzeFrame(cam, frame); } });
   ff.on('exit', () => { motionProcs[cam.id] = null; setTimeout(() => { const c = getCam(cam.id); if (c) startMotion(c); }, 5000); });
   ff.on('error', e => log(`[${cam.id}] hərəkət xətası: ` + e.message));
 }
@@ -164,7 +164,7 @@ function captureMotion(cam, comps, count = 1) {
   const n = Math.max(1, Math.min(20, count)); const dur = n <= 1 ? 1 : 5; const fps = n / dur; // bir keçiddə n kadr (bir bağlantı)
   const vf = (boxes ? boxes + ',' : '') + `fps=${fps}`;
   const base = `hr_${stamp()}`;
-  const ff = spawn('ffmpeg', ['-nostdin', '-loglevel', 'error', '-rtsp_transport', 'tcp', '-i', mainUrl(cam), '-t', String(dur), '-vf', vf, '-q:v', '2', path.join(dirOf(cam, 'hareket'), base + '-%02d.jpg')], { stdio: ['ignore', 'ignore', 'ignore'] });
+  const ff = spawn('ffmpeg', ['-nostdin', '-loglevel', 'error', '-rtsp_transport', 'tcp', '-timeout', '20000000', '-i', mainUrl(cam), '-t', String(dur), '-vf', vf, '-q:v', '2', path.join(dirOf(cam, 'hareket'), base + '-%02d.jpg')], { stdio: ['ignore', 'ignore', 'ignore'] });
   const done = () => { S.capturing = false; }; ff.on('exit', done); ff.on('error', done); setTimeout(done, (dur + 8) * 1000);
 }
 // hərəkət anında: ring-buferdən PRE + POST saniyələri birləşdir (gecikməsiz, hadisədən əvvəlki anlar daxil)
@@ -175,7 +175,7 @@ function recordMotionClip(cam) {
   const T = Date.now(), fn = `hv_${stamp()}.mp4`, out = path.join(dirOf(cam, 'hareket_video'), fn);
   // birbaşa yazma fallback (ring boş/xarab olsa belə klip HƏMİŞƏ yaransın)
   const directRecord = () => {
-    const ff = spawn('ffmpeg', ['-nostdin', '-loglevel', 'error', '-rtsp_transport', 'tcp', '-i', mainUrl(cam), '-t', '30', '-c:v', 'copy', '-c:a', 'aac', '-movflags', '+faststart', out], { stdio: ['ignore', 'ignore', 'ignore'] });
+    const ff = spawn('ffmpeg', ['-nostdin', '-loglevel', 'error', '-rtsp_transport', 'tcp', '-timeout', '20000000', '-i', mainUrl(cam), '-t', '30', '-c:v', 'copy', '-c:a', 'aac', '-movflags', '+faststart', out], { stdio: ['ignore', 'ignore', 'ignore'] });
     ff.on('error', () => {});
   };
   setTimeout(() => {
@@ -191,29 +191,54 @@ function recordMotionClip(cam) {
   }, POST_MS);
 }
 function startCam(cam) { ensureCamDirs(cam); if (cam.recMode !== 'off') startMotion(cam); if (cam.recMode === 'continuous') startRec(cam); }
+// WATCHDOG: kamera axını donanda (ffmpeg çıxmır, sadəcə kilidlənir) prosesi öldür → exit handler yenidən qoşur.
+// Həmçinin olmalı olan proses yoxdursa onu da bərpa edir. Hər 10s-də yoxlayır.
+const FREEZE_MS = 25000;
+function watchdog() {
+  for (const cam of CAMS) {
+    const c = getCam(cam.id); if (!c) continue;
+    if (c.recMode === 'off') continue;
+    const S = mState[cam.id], ff = motionProcs[cam.id];
+    if (ff) {
+      // proses var — kadr axını donubsa öldür (exit → avtomatik yenidən qoşulma)
+      if (S && S.lastFrame && Date.now() - S.lastFrame > FREEZE_MS) {
+        log(`[${cam.id}] axın dondu (${Math.round((Date.now() - S.lastFrame) / 1000)}s) — yenidən qoşulur`);
+        try { ff.kill('SIGKILL'); } catch (e) {}
+      }
+    } else {
+      // proses yoxdur, amma olmalıdır — bərpa et
+      log(`[${cam.id}] hərəkət prosesi yoxdur — başladılır`);
+      startMotion(c);
+    }
+    // davamlı rejim yazması qopmuşsa bərpa et
+    if (c.recMode === 'continuous' && recState[cam.id] && recState[cam.id].enabled && !recProcs[cam.id]) {
+      log(`[${cam.id}] davamlı yazma qopdu — yenidən başladılır`); startRec(c);
+    }
+  }
+}
 function stopCam(cam) { recState[cam.id] = { enabled: false, since: null }; for (const m of [recProcs, motionProcs, clipProcs, ringProcs]) { const ff = m[cam.id]; if (ff) { try { ff.kill('SIGKILL'); } catch (e) {} m[cam.id] = null; } } }
 function restartCam(cam) { stopCam(cam); setTimeout(() => startCam(cam), 1500); }
 
 // ---------- CANLI ----------
 function liveVideo(req, res, cam, hd) {
   res.writeHead(200, { 'Content-Type': 'multipart/x-mixed-replace; boundary=ffmpeg', 'Cache-Control': 'no-cache', 'Connection': 'close' });
-  const args = hd ? ['-nostdin', '-rtsp_transport', 'tcp', '-i', mainUrl(cam), '-f', 'mpjpeg', '-q:v', '4', '-r', '12', '-vf', 'scale=1280:-2', '-an', '-']
-                  : ['-nostdin', '-rtsp_transport', 'tcp', '-i', subUrl(cam), '-f', 'mpjpeg', '-q:v', '6', '-r', '12', '-an', '-'];
+  const args = hd ? ['-nostdin', '-rtsp_transport', 'tcp', '-timeout', '20000000', '-i', mainUrl(cam), '-f', 'mpjpeg', '-q:v', '4', '-r', '12', '-vf', 'scale=1280:-2', '-an', '-']
+                  : ['-nostdin', '-rtsp_transport', 'tcp', '-timeout', '20000000', '-i', subUrl(cam), '-f', 'mpjpeg', '-q:v', '6', '-r', '12', '-an', '-'];
   const ff = spawn('ffmpeg', args, { stdio: ['ignore', 'pipe', 'ignore'] });
   ff.stdout.pipe(res); const k = () => { try { ff.kill('SIGKILL'); } catch (e) {} }; req.on('close', k); res.on('close', k); ff.on('error', () => { try { res.end(); } catch (e) {} });
 }
 function liveAudio(req, res, cam, g) {
   res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-cache', 'Connection': 'close' });
-  const ff = spawn('ffmpeg', ['-nostdin', '-rtsp_transport', 'tcp', '-i', subUrl(cam), '-vn', '-af', `highpass=f=150,loudnorm=I=-11,volume=${g},alimiter=limit=0.97`, '-ar', '44100', '-c:a', 'libmp3lame', '-b:a', '128k', '-f', 'mp3', '-'], { stdio: ['ignore', 'pipe', 'ignore'] });
+  const ff = spawn('ffmpeg', ['-nostdin', '-rtsp_transport', 'tcp', '-timeout', '20000000', '-i', subUrl(cam), '-vn', '-af', `highpass=f=150,loudnorm=I=-11,volume=${g},alimiter=limit=0.97`, '-ar', '44100', '-c:a', 'libmp3lame', '-b:a', '128k', '-f', 'mp3', '-'], { stdio: ['ignore', 'pipe', 'ignore'] });
   ff.stdout.pipe(res); const k = () => { try { ff.kill('SIGKILL'); } catch (e) {} }; req.on('close', k); res.on('close', k); ff.on('error', () => { try { res.end(); } catch (e) {} });
 }
 function liveSnapshot(req, res, cam) {
-  const ff = spawn('ffmpeg', ['-nostdin', '-rtsp_transport', 'tcp', '-i', subUrl(cam), '-frames:v', '1', '-f', 'mjpeg', '-'], { stdio: ['ignore', 'pipe', 'ignore'] });
+  const ff = spawn('ffmpeg', ['-nostdin', '-rtsp_transport', 'tcp', '-timeout', '20000000', '-i', subUrl(cam), '-frames:v', '1', '-f', 'mjpeg', '-'], { stdio: ['ignore', 'pipe', 'ignore'] });
   res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'no-cache' }); ff.stdout.pipe(res); ff.on('error', () => { try { res.end(); } catch (e) {} });
 }
 function savePhoto(req, res, cam) {
   const fn = `foto_${stamp()}.jpg`;
-  const ff = spawn('ffmpeg', ['-nostdin', '-rtsp_transport', 'tcp', '-i', mainUrl(cam), '-frames:v', '1', '-q:v', '2', path.join(dirOf(cam, 'resimler'), fn)], { stdio: ['ignore', 'ignore', 'ignore'] });
+  const ff = spawn('ffmpeg', ['-nostdin', '-rtsp_transport', 'tcp', '-timeout', '20000000', '-i', mainUrl(cam), '-frames:v', '1', '-q:v', '2', path.join(dirOf(cam, 'resimler'), fn)], { stdio: ['ignore', 'ignore', 'ignore'] });
   ff.on('exit', c => json(res, { ok: c === 0, name: fn })); ff.on('error', () => json(res, { ok: false }, 500));
 }
 
@@ -585,4 +610,4 @@ server.on('upgrade', (req, sock) => {
 });
 function shutdown() { log('server bağlanır'); for (const cam of CAMS) { if (recState[cam.id]) recState[cam.id].enabled = false; } for (const m of [recProcs, motionProcs, clipProcs, ringProcs]) for (const id in m) { try { if (m[id]) m[id].kill('SIGTERM'); } catch (e) {} } setTimeout(() => process.exit(0), 1500); }
 process.on('SIGTERM', shutdown); process.on('SIGINT', shutdown);
-server.listen(PORT, () => { log(`dashboard başladı, port ${PORT}, ${CAMS.length} kamera`); console.log(`Kamera dashboard: http://localhost:${PORT}`); CAMS.forEach(startCam); cleanup(); setInterval(cleanup, 15 * 60 * 1000); });
+server.listen(PORT, () => { log(`dashboard başladı, port ${PORT}, ${CAMS.length} kamera`); console.log(`Kamera dashboard: http://localhost:${PORT}`); CAMS.forEach(startCam); cleanup(); setInterval(cleanup, 15 * 60 * 1000); setInterval(watchdog, 10 * 1000); });
