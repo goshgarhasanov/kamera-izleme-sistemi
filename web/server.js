@@ -436,6 +436,19 @@ async function cameraNet(cam) {
 }
 // internet ping + download sürəti (server tərəfi)
 function measurePing(cb) { const ff = spawn('ping', ['-c', '4', '-w', '6', '8.8.8.8'], { stdio: ['ignore', 'pipe', 'ignore'] }); let o = ''; ff.stdout.on('data', d => o += d); ff.on('close', () => { const m = o.match(/=\s*[\d.]+\/([\d.]+)\//); const loss = (o.match(/(\d+)% packet loss/) || [])[1]; cb({ ping: m ? Math.round(parseFloat(m[1])) : null, loss: loss != null ? +loss : null }); }); ff.on('error', () => cb({ ping: null, loss: null })); }
+// kameraya ping ilə WiFi/siqnal gücü (telefon kimi 0-3 dalğa) — firmware siqnal vermədiyi üçün gecikmə/itki ilə ölçülür
+function camSignal(ip, cb) {
+  const ff = spawn('ping', ['-c', '3', '-w', '4', ip], { stdio: ['ignore', 'pipe', 'ignore'] }); let o = '';
+  ff.stdout.on('data', d => o += d);
+  ff.on('close', () => {
+    const m = o.match(/=\s*[\d.]+\/([\d.]+)\//); const lm = (o.match(/(\d+)% packet loss/) || [])[1];
+    const ping = m ? Math.round(parseFloat(m[1])) : null; const loss = lm != null ? +lm : 100;
+    let bars = 0, online = false;
+    if (ping != null && loss < 100) { online = true; if (loss >= 40) bars = 1; else if (ping <= 20) bars = 3; else if (ping <= 60) bars = 2; else bars = 1; }
+    cb({ online, ping, loss, bars });
+  });
+  ff.on('error', () => cb({ online: false, ping: null, loss: 100, bars: 0 }));
+}
 function measureDownload(cb) {
   const start = Date.now(); let bytes = 0; let done = false;
   const fin = () => { if (done) return; done = true; const sec = (Date.now() - start) / 1000; cb(sec > 0.1 && bytes > 0 ? +((bytes * 8 / 1e6) / sec).toFixed(1) : null); };
@@ -543,6 +556,7 @@ const server = http.createServer(async (req, res) => {
     else if (p === '/api/image' && req.method === 'POST') { const b = await readBody(req); try { json(res, { ok: await setImaging(cam, b) }); } catch (e) { json(res, { ok: false }, 500); } }
     else if (p === '/api/camera/info' && req.method === 'GET') { try { json(res, await cameraInfo(cam)); } catch (e) { json(res, {}, 500); } }
     else if (p === '/api/camera/net' && req.method === 'GET') { try { json(res, await cameraNet(cam)); } catch (e) { json(res, {}, 500); } }
+    else if (p === '/api/camera/signal' && req.method === 'GET') { camSignal(cam.ip, s => json(res, s)); }
     else if (p === '/api/net' && req.method === 'GET') { measurePing(pr => measureDownload(dl => json(res, { ping: pr.ping, loss: pr.loss, download: dl }))); }
     else if (p.startsWith('/thumb/rec/')) serveThumb(req, res, cam, 'videolar', p.replace('/thumb/rec/', ''));
     else if (p.startsWith('/thumb/mv/')) serveThumb(req, res, cam, 'hareket_video', p.replace('/thumb/mv/', ''));

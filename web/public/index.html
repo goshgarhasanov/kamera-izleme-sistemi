@@ -712,7 +712,7 @@ img,video,canvas,svg{max-width:100%}
 </div></div>
 <!-- BÖYÜK GÖRÜNÜŞ (çoxlu görünüşdən) -->
 <div class="modal" id="bigV" style="z-index:80"><div class="modal-box" style="max-width:1100px">
-  <div class="modal-h"><span class="t" id="bigVName"></span><div class="acts">
+  <div class="modal-h"><span class="t" id="bigVName"></span><span id="bigVSig" title="Siqnal yoxlanılır…" style="display:inline-flex;align-items:center;margin-left:8px;background:rgba(255,255,255,.07);border-radius:7px;padding:3px 7px"></span><div class="acts">
     <button class="btn" id="bigVTalkBtn"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11h-2z"/></svg>Danış</button>
     <button class="btn" id="bigVAudioBtn" onclick="bigVAudio()"><svg viewBox="0 0 24 24"><path d="M3 10v4h4l5 5V5L7 10H3z"/></svg>Səs</button>
     <button class="btn" onclick="playPreset('siren')" title="Kameradan sirena çal">🔊 Sirena</button>
@@ -805,19 +805,31 @@ async function delCamera(id,name){if(!await askConfirm('"'+name+'" kamerası sil
   const r=await api('/api/cameras/'+id,{method:'DELETE'});if(r.ok){toast('Kamera silindi','ok');if(CAM===id){CAM='';}await loadCameras();renderCamList();loadStatus();}else toast('Xəta: '+(r.err||''),'err');}
 /* ÇOXLU GÖRÜNÜŞ + BÖYÜK GÖRÜNÜŞ */
 let bigViewId=null,bigAudio=null;
+// telefon kimi WiFi siqnal ikonu (0-3 dalğa). bars<0 = yoxlanılır (solğun)
+function wifiSvg(bars){const col=bars>=3?'#22c55e':bars===2?'#84cc16':bars===1?'#f59e0b':'#ef4444';const dim='rgba(255,255,255,.25)';const chk=bars<0;const c=l=>chk?dim:(l<=bars?col:dim);const dot=chk?dim:(bars>=1?col:'#ef4444');
+  return `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke-width="2.1" stroke-linecap="round" style="display:block">
+    <path d="M2.5 8.4C7 4.2 17 4.2 21.5 8.4" stroke="${c(3)}"/>
+    <path d="M5.5 11.8C8.8 8.9 15.2 8.9 18.5 11.8" stroke="${c(2)}"/>
+    <path d="M8.5 15.2C10.4 13.5 13.6 13.5 15.5 15.2" stroke="${c(1)}"/>
+    <circle cx="12" cy="18.6" r="1.5" fill="${dot}" stroke="none"/></svg>`;}
+async function refreshSignals(){await Promise.all(CAMERAS.map(async c=>{const el=document.getElementById('sig-'+c.id);if(!el)return;try{const s=await api('/api/camera/signal?cam='+c.id);const b=s.online?s.bars:0;el.innerHTML=wifiSvg(b);el.title=s.online?`WiFi siqnal: ${b}/3 · ${s.ping}ms${s.loss?' · '+s.loss+'% itki':''}`:'Kamera oflayn';}catch(e){}}));}
 function renderMultiview(){const g=$('#mvGrid');if(!g)return;
   g.innerHTML=CAMERAS.map(c=>`<div onclick="openBigView('${c.id}')" style="cursor:pointer">
     <div style="position:relative;background:#000;aspect-ratio:16/9;border-radius:12px;overflow:hidden;border:1px solid var(--border)">
       <img class="mvcam" data-cam="${c.id}" src="/live.mjpeg?cam=${c.id}&t=${Date.now()}" style="width:100%;height:100%;object-fit:cover" onerror="mvReconnect(this)">
       <span class="live-badge" style="font-size:10px;padding:4px 9px;left:8px;top:8px;right:auto"><span class="dot"></span>${c.name}</span>
+      <span class="mv-sig" id="sig-${c.id}" title="Siqnal yoxlanılır…" style="position:absolute;top:7px;right:7px;background:rgba(0,0,0,.5);border-radius:7px;padding:3px 6px">${wifiSvg(-1)}</span>
       <span style="position:absolute;bottom:7px;right:7px;background:rgba(0,0,0,.55);color:#fff;font-size:10px;padding:3px 7px;border-radius:6px">🔍 böyüt</span>
-    </div></div>`).join('');}
+    </div></div>`).join('');refreshSignals();}
 function mvReconnect(img){if(img._rc)return;img._rc=1;setTimeout(()=>{img._rc=0;if(img.isConnected)img.src='/live.mjpeg?cam='+img.dataset.cam+'&t='+Date.now();},2500);}
 // multiview watchdog — donmuş/qopmuş plitələri avtomatik yenidən qoş
 setInterval(()=>{if(!$('#view-multiview')||!$('#view-multiview').classList.contains('active'))return;
   document.querySelectorAll('#mvGrid img.mvcam').forEach(img=>{if(!img.naturalWidth&&!img._rc)mvReconnect(img);});},12000);
+// WiFi siqnalını dövri yenilə (çoxlu görünüş açıqkən)
+setInterval(()=>{if($('#view-multiview')&&$('#view-multiview').classList.contains('active'))refreshSignals();},15000);
 let bigPadBuilt=false;
-function openBigView(id){bigViewId=id;CAM=id;localStorage.setItem('cam',id);renderCamSwitch();const c=CAMERAS.find(x=>x.id===id)||{};$('#bigVName').textContent=c.name||id;$('#bigVImg').src='/live.mjpeg?cam='+id+'&t='+Date.now();if(!bigPadBuilt){buildPad($('#bigPad'));buildZoom($('#bigZoom'));bigPadBuilt=true;}$('#bigV').classList.add('open');}
+function openBigView(id){bigViewId=id;CAM=id;localStorage.setItem('cam',id);renderCamSwitch();const c=CAMERAS.find(x=>x.id===id)||{};$('#bigVName').textContent=c.name||id;$('#bigVImg').src='/live.mjpeg?cam='+id+'&t='+Date.now();if(!bigPadBuilt){buildPad($('#bigPad'));buildZoom($('#bigZoom'));bigPadBuilt=true;}$('#bigV').classList.add('open');bigVSignal();}
+function bigVSignal(){const el=$('#bigVSig');if(!el)return;el.innerHTML=wifiSvg(-1);api('/api/camera/signal?cam='+bigViewId).then(s=>{if(!$('#bigV').classList.contains('open'))return;const b=s.online?s.bars:0;el.innerHTML=wifiSvg(b);el.title=s.online?`WiFi siqnal: ${b}/3 · ${s.ping}ms${s.loss?' · '+s.loss+'% itki':''}`:'Kamera oflayn';}).catch(()=>{});}
 function bigVTogglePtz(f){const o=$('#bigPtzOv'),b=$('#bigVPtzBtn');const open=f===false?false:!o.classList.contains('show');o.classList.toggle('show',open);b.classList.toggle('primary',open);}
 function closeBigView(){$('#bigV').classList.remove('open');$('#bigVImg').src='';if(bigAudio){bigAudio.pause();bigAudio=null;$('#bigVAudioBtn').classList.remove('primary');}talkStop($('#bigVTalkBtn'));}
 function bigVFull(){const e=$('#bigVImg');(e.requestFullscreen||e.webkitRequestFullscreen).call(e);}
