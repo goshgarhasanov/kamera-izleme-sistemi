@@ -340,6 +340,20 @@ function shareVideo(req, res, cam, kind, name) {
   });
   ff.on('error', () => { res.writeHead(500); res.end(); });
 }
+// Videonu yerində adlandır (.mp4 + .h264 keş + .thumbs eyni vaxtda)
+function renameVideo(cam, kind, from, to) {
+  const src = safeName(cam, kind, 'mp4', from); if (!src || !fs.existsSync(src)) return { ok: false, err: 'yoxdur' };
+  let base = (to || '').replace(/\.mp4$/i, '').replace(/[^\w\- ]/g, '_').trim(); if (!base) return { ok: false, err: 'ad yanlış' };
+  const toName = base + '.mp4';
+  const dst = safeName(cam, kind, 'mp4', toName); if (!dst) return { ok: false, err: 'ad yanlış' };
+  if (fs.existsSync(dst)) return { ok: false, err: 'bu ad mövcuddur' };
+  try { fs.renameSync(src, dst); } catch (e) { return { ok: false, err: 'alınmadı' }; }
+  const d = dirOf(cam, kind);
+  const mv = (a, b) => { try { if (fs.existsSync(a)) fs.renameSync(a, b); } catch (e) {} };
+  mv(path.join(d, '.h264', from), path.join(d, '.h264', toName));              // oynatma keşi
+  mv(path.join(d, '.thumbs', from + '.jpg'), path.join(d, '.thumbs', toName + '.jpg')); // kiçik şəkil
+  return { ok: true, name: toName };
+}
 // Seçilmiş [start,end] aralığını kəsib WhatsApp üçün H.264 mp4 endirir
 function cutVideo(req, res, cam, kind, name, q) {
   const src = safeName(cam, kind, 'mp4', name); if (!src || !fs.existsSync(src)) { res.writeHead(404); return res.end('yox'); }
@@ -536,6 +550,8 @@ const server = http.createServer(async (req, res) => {
     else if (p.startsWith('/share/mv/')) shareVideo(req, res, cam, 'hareket_video', p.replace('/share/mv/', ''));
     else if (p.startsWith('/cut/rec/')) cutVideo(req, res, cam, 'videolar', p.replace('/cut/rec/', ''), q);
     else if (p.startsWith('/cut/mv/')) cutVideo(req, res, cam, 'hareket_video', p.replace('/cut/mv/', ''), q);
+    else if (p === '/api/rename/rec' && req.method === 'POST') { const b = await readBody(req); json(res, renameVideo(cam, 'videolar', b.from, b.to)); }
+    else if (p === '/api/rename/mv' && req.method === 'POST') { const b = await readBody(req); json(res, renameVideo(cam, 'hareket_video', b.from, b.to)); }
     else if (p === '/api/camera/reboot' && req.method === 'POST') { try { const r = await lapi(cam, 'PUT', 'System/Reboot', { Delay: 0 }); json(res, { ok: /Succeed/.test(r.body) }); } catch (e) { json(res, { ok: false }, 500); } }
     else if (p === '/api/camera/synctime' && req.method === 'POST') { try { const r = await lapi(cam, 'PUT', 'System/Time', { TimeZone: 'GMT+04:00', DeviceTime: Math.floor(Date.now() / 1000) }); json(res, { ok: /Succeed/.test(r.body) }); } catch (e) { json(res, { ok: false }, 500); } }
     // ayarlar (seçili kameranın parametrləri)

@@ -1010,7 +1010,8 @@ function recCard(r,i){const on=SEL.rec.has(r.name);const writing=!r.ready;
       <div class="pic"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
       ${writing?'<span class="writing"><span class="d"></span>Yazılır</span>':''}${durTxt}</div>
     <div class="info"><div class="meta"><div class="nm">${timeOf(r.date)} · ${fmt(r.dur||0)}</div><div class="sb">${fmtSize(r.size)}${writing?' · canlı yazılır':''}</div></div>
-      ${writing?'':`<span class="act" onclick="event.stopPropagation();dl('${r.name}')" title="Yüklə"><svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg></span>
+      ${writing?'':`<span class="act" onclick="event.stopPropagation();renameVid('rec','${r.name}')" title="Adını dəyiş"><svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></span>
+      <span class="act" onclick="event.stopPropagation();dl('${r.name}')" title="Yüklə"><svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg></span>
       <span class="act" onclick="event.stopPropagation();delOne('rec','${r.name}')" title="Sil"><svg viewBox="0 0 24 24"><path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2H8l1-2z"/></svg></span>`}</div></div>`;}
 function emptyBox(ic,t,s){const icons={record:'M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm6 4v8l6-4-6-4z',cam:'M12 15.2A3.2 3.2 0 1 0 12 8.8a3.2 3.2 0 0 0 0 6.4zM9 3L7.2 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3H9z'};return `<div class="empty"><svg viewBox="0 0 24 24"><path d="${icons[ic]}"/></svg><p>${t}</p><div class="sm">${s||''}</div></div>`;}
 
@@ -1030,9 +1031,11 @@ function mvCard(r,i){const on=SEL.mv.has(r.name);const writing=!r.ready;
       <div class="pic"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
       ${writing?'<span class="writing"><span class="d"></span>Yazılır</span>':`<span class="time">${fmt(r.dur||0)}</span>`}</div>
     <div class="info"><div class="meta"><div class="nm">${timeOf(r.date)} hərəkəti</div><div class="sb">${fmtSize(r.size)} · ${fmt(r.dur||0)}</div></div>
-      ${writing?'':`<span class="act" onclick="event.stopPropagation();dlMv('${r.name}')" title="Yüklə"><svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg></span>
+      ${writing?'':`<span class="act" onclick="event.stopPropagation();renameVid('mv','${r.name}')" title="Adını dəyiş"><svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></span>
+      <span class="act" onclick="event.stopPropagation();dlMv('${r.name}')" title="Yüklə"><svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg></span>
       <span class="act" onclick="event.stopPropagation();delOne('mv','${r.name}')" title="Sil"><svg viewBox="0 0 24 24"><path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2H8l1-2z"/></svg></span>`}</div></div>`;}
 function dlMv(name){toast('H.264-ə çevrilir (paylaşıma hazırlanır)…');const a=document.createElement('a');a.href=M('/share/mv/'+encodeURIComponent(name));a.download=name;a.click();}
+async function renameVid(kind,name){const nn=await askPrompt('Yeni ad:',name.replace(/\.mp4$/i,''),{title:'Videonu adlandır'});if(!nn)return;const r=await api('/api/rename/'+kind,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from:name,to:nn})});if(r&&r.ok){toast('Adı dəyişdi ✓','ok');if(kind==='rec')loadRecs();else loadMvids();}else toast(r&&r.err?r.err:'Alınmadı','err');}
 function galCfg(k){return k==='pho'?{box:'#phoBox',search:'#phoSearch',serve:'/photo/',empty:['cam','Hələ şəkil yoxdur','"Yeni Şəkil Çək" düyməsi ilə şəkil çəkin']}:{box:'#motBox',search:'#motSearch',serve:'/motion/',empty:['cam','Hələ hərəkət aşkarlanmayıb','Kamera qarşısında hərəkət olanda şəkil çəkiləcək']};}
 function renderGal(k){const c=galCfg(k);const q=($(c.search).value||'').toLowerCase();const list=DATA[k].filter(m=>m.name.toLowerCase().includes(q)||dayKey(m.date).includes(q));const box=$(c.box);
   if(!list.length){box.innerHTML=emptyBox(c.empty[0],c.empty[1],c.empty[2]);return;}
