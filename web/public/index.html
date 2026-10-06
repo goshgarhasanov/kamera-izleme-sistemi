@@ -202,6 +202,14 @@ body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background
 .pnav:hover{background:var(--accent);border-color:var(--accent);transform:translateY(-50%) scale(1.12);box-shadow:0 4px 16px var(--glow)}
 .pprev{left:14px}.pnext{right:14px}
 @media(max-width:600px){.pnav{width:40px;height:40px;font-size:22px}.pprev{left:8px}.pnext{right:8px}}
+.cutbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;margin-top:10px;background:var(--panel2);border:1px solid var(--border);border-radius:12px}
+.cutbar .cuttag{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--gold)}
+.cutbar .cuttag svg{width:16px;height:16px;fill:var(--gold)}
+.cutbar .btn.sm{padding:6px 10px;font-size:12px}
+.cutbar .btn.gold{background:linear-gradient(135deg,var(--gold),var(--accent));border-color:var(--gold);color:#1a1206;font-weight:700;margin-left:auto}
+.cutbar .btn.gold svg{fill:#1a1206}
+.cutrange{font-size:12.5px;color:var(--text);background:rgba(255,149,0,.12);border:1px solid rgba(255,149,0,.3);border-radius:8px;padding:5px 10px;font-variant-numeric:tabular-nums}
+@media(max-width:600px){.cutbar .btn.gold{margin-left:0;width:100%;justify-content:center}}
 .modal-f{padding:14px 18px;display:flex;gap:14px;align-items:center}.modal-f input[type=range]{flex:1;accent-color:var(--accent)}
 .modal-f .tl{font-size:12px;color:var(--muted);min-width:52px;font-variant-numeric:tabular-nums}
 .x{background:none;border:none;font-size:22px;color:var(--muted);cursor:pointer;padding:4px 8px;border-radius:8px}.x:hover{color:var(--text);background:var(--hover)}
@@ -693,6 +701,14 @@ img,video,canvas,svg{max-width:100%}
     <button class="pnav pprev" onclick="playNav(-1)" title="Əvvəlki video">‹</button>
     <button class="pnav pnext" onclick="playNav(1)" title="Sonrakı video">›</button>
   </div>
+  <div class="cutbar">
+    <span class="cuttag"><svg viewBox="0 0 24 24"><path d="M9.6 9.6 3 3v2.5l4.9 4.9a2.8 2.8 0 1 0 1.1 1.1l2-2 2 2-2 2a2.8 2.8 0 1 0 1.1 1.1L21 5.5V3l-6.6 6.6-2.4-2.4 2.4-2.4L9.6 9.6zM5.5 15.5a1.3 1.3 0 1 1 0 2.6 1.3 1.3 0 0 1 0-2.6zm13 0a1.3 1.3 0 1 1 0 2.6 1.3 1.3 0 0 1 0-2.6z"/></svg>Kəsim</span>
+    <button class="btn sm" onclick="setCut('s')" title="Hazırkı anı başlanğıc et">⏮ Başlanğıc</button>
+    <button class="btn sm" onclick="setCut('e')" title="Hazırkı anı son et">Son ⏭</button>
+    <span class="cutrange" id="cutRange">seçilməyib</span>
+    <button class="btn sm" onclick="clearCut()" title="Seçimi sıfırla">✕</button>
+    <button class="btn gold" onclick="doCut()" title="Seçilmiş aralığı WhatsApp mp4 kimi endir"><svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg>Kəs və endir</button>
+  </div>
 </div></div>
 <!-- BÖYÜK GÖRÜNÜŞ (çoxlu görünüşdən) -->
 <div class="modal" id="bigV" style="z-index:80"><div class="modal-box" style="max-width:1100px">
@@ -1049,8 +1065,14 @@ function refresh(k){({rec:loadRecs,pho:loadPhotos,mot:loadMotion,mv:loadMvids}[k
 
 /* OYNATICI — tək native player + sol/sağ keçid */
 let current=null,curKind='rec',navList=[],curIdx=-1;
-const PLAYEP={rec:{p:'/vplay/rec/',dl:'/share/rec/'},mv:{p:'/vplay/mv/',dl:'/share/mv/'}};
-function playFile(name){current=name;$('#mT').textContent=name;const v=$('#player');v.src=M(PLAYEP[curKind].p+encodeURIComponent(name));v.play().catch(()=>{});}
+const PLAYEP={rec:{p:'/vplay/rec/',dl:'/share/rec/',cut:'/cut/rec/'},mv:{p:'/vplay/mv/',dl:'/share/mv/',cut:'/cut/mv/'}};
+let cutS=null,cutE=null;
+function fmtT(s){s=Math.max(0,s||0);const m=Math.floor(s/60),x=Math.floor(s%60);return m+':'+String(x).padStart(2,'0');}
+function renderCut(){const el=$('#cutRange');if(cutS==null&&cutE==null){el.textContent='seçilməyib';el.style.opacity=.6;return;}el.style.opacity=1;const a=cutS==null?'—':fmtT(cutS),b=cutE==null?'—':fmtT(cutE);let d='';if(cutS!=null&&cutE!=null&&cutE>cutS)d=' ('+(cutE-cutS).toFixed(1)+'s)';el.textContent=a+' → '+b+d;}
+function clearCut(){cutS=cutE=null;renderCut();}
+function setCut(w){const v=$('#player');const t=v.currentTime||0;if(w==='s'){cutS=t;if(cutE!=null&&cutE<=cutS)cutE=null;}else{if(cutS!=null&&t<=cutS)return toast('Son başlanğıcdan sonra olmalı','err');cutE=t;}renderCut();}
+function doCut(){if(cutS==null||cutE==null)return toast('Başlanğıc və son seçin','err');if(cutE<=cutS)return toast('Aralıq yanlış','err');if(!current)return;toast('Kəsilir, WhatsApp mp4 hazırlanır…');const url=M(PLAYEP[curKind].cut+encodeURIComponent(current))+'&start='+cutS.toFixed(2)+'&end='+cutE.toFixed(2);const a=document.createElement('a');a.href=url;a.download='';a.click();}
+function playFile(name){current=name;$('#mT').textContent=name;clearCut();const v=$('#player');v.src=M(PLAYEP[curKind].p+encodeURIComponent(name));v.play().catch(()=>{});}
 async function play(name,kind='rec'){curKind=kind;$('#modal').classList.add('open');
   navList=(kind==='rec'?RECS:MVIDS).filter(x=>x.ready!==false);curIdx=navList.findIndex(x=>x.name===name);playFile(name);}
 function playNav(d){if(!navList.length)return;const i=curIdx+d;if(i<0||i>=navList.length)return toast(d>0?'Sonuncu video':'İlk video','err');curIdx=i;playFile(navList[i].name);}
@@ -1144,7 +1166,7 @@ function evtCard(e,i){const thumb=e.type==='clip'?`/thumb/mv/${encodeURIComponen
     <img loading="lazy" src="${thumb}" onerror="this.style.opacity=.2" alt="">${badge}
     <span class="tm"><span>${new Date(e.date).toLocaleTimeString('az-AZ')}${($('#evtAllCams')&&$('#evtAllCams').checked)?' · '+camName(e.cam):''}</span><span>${e.type==='clip'?fmt(e.dur||0):fmtSize(e.size)}</span></span></div>`;}
 function openEvent(type,cam,name){if(CAM!==cam){CAM=cam;localStorage.setItem('cam',cam);renderCamSwitch();}
-  if(type==='clip'){navList=[];curIdx=-1;curKind='mv';current=name;$('#mT').textContent=name;$('#modal').classList.add('open');const v=$('#player');v.src=M('/vplay/mv/'+encodeURIComponent(name));v.play().catch(()=>{});}
+  if(type==='clip'){navList=[];curIdx=-1;curKind='mv';current=name;$('#mT').textContent=name;clearCut();$('#modal').classList.add('open');const v=$('#player');v.src=M('/vplay/mv/'+encodeURIComponent(name));v.play().catch(()=>{});}
   else{evtViewImg('/motion/'+encodeURIComponent(name)+'?cam='+cam,name);}}
 function evtViewImg(url,caption){lbSingle=true;$('#lbImg').src=url;$('#lbT').textContent=caption;lbScale=1;lbX=0;lbY=0;lbApply();$('#lb').classList.add('open');}
 /* SƏSLƏR — yüklə / qeyd et / kameradan çal */

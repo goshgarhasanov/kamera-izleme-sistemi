@@ -340,6 +340,26 @@ function shareVideo(req, res, cam, kind, name) {
   });
   ff.on('error', () => { res.writeHead(500); res.end(); });
 }
+// Seçilmiş [start,end] aralığını kəsib WhatsApp üçün H.264 mp4 endirir
+function cutVideo(req, res, cam, kind, name, q) {
+  const src = safeName(cam, kind, 'mp4', name); if (!src || !fs.existsSync(src)) { res.writeHead(404); return res.end('yox'); }
+  const start = Math.max(0, parseFloat(q.get('start')) || 0);
+  const end = parseFloat(q.get('end')) || 0;
+  const dur = end - start;
+  if (!(dur > 0.2)) { res.writeHead(400); return res.end('aralıq yanlış'); }
+  const tmp = path.join(os.tmpdir(), 'cut_' + Date.now() + '.mp4');
+  const ff = spawn('ffmpeg', ['-nostdin', '-loglevel', 'error', '-ss', String(start), '-i', src, '-t', String(dur),
+    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-pix_fmt', 'yuv420p', '-vf', "scale='min(1280,iw)':-2",
+    '-c:a', 'aac', '-movflags', '+faststart', tmp, '-y'], { stdio: ['ignore', 'ignore', 'ignore'] });
+  ff.on('exit', c => {
+    if (c !== 0 || !fs.existsSync(tmp)) { res.writeHead(500); return res.end('xəta'); }
+    const st = fs.statSync(tmp); const base = name.replace(/\.mp4$/, '');
+    const fn = `${base}_kesim_${Math.round(start)}-${Math.round(end)}s.mp4`;
+    res.writeHead(200, { 'Content-Length': st.size, 'Content-Type': 'video/mp4', 'Content-Disposition': `attachment; filename="${fn}"` });
+    const rs = fs.createReadStream(tmp); rs.pipe(res); rs.on('close', () => { try { fs.unlinkSync(tmp); } catch (e) {} });
+  });
+  ff.on('error', () => { try { res.writeHead(500); res.end(); } catch (e) {} });
+}
 function serveImg(req, res, cam, kind, name) { const p = safeName(cam, kind, 'jpg', name); if (!p || !fs.existsSync(p)) { res.writeHead(404); return res.end('yoxdur'); } res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'max-age=3600' }); fs.createReadStream(p).pipe(res); }
 // video kadrı (thumbnail) — önbelleklə
 function serveThumb(req, res, cam, kind, name) {
@@ -514,6 +534,8 @@ const server = http.createServer(async (req, res) => {
     else if (p.startsWith('/thumb/mv/')) serveThumb(req, res, cam, 'hareket_video', p.replace('/thumb/mv/', ''));
     else if (p.startsWith('/share/rec/')) shareVideo(req, res, cam, 'videolar', p.replace('/share/rec/', ''));
     else if (p.startsWith('/share/mv/')) shareVideo(req, res, cam, 'hareket_video', p.replace('/share/mv/', ''));
+    else if (p.startsWith('/cut/rec/')) cutVideo(req, res, cam, 'videolar', p.replace('/cut/rec/', ''), q);
+    else if (p.startsWith('/cut/mv/')) cutVideo(req, res, cam, 'hareket_video', p.replace('/cut/mv/', ''), q);
     else if (p === '/api/camera/reboot' && req.method === 'POST') { try { const r = await lapi(cam, 'PUT', 'System/Reboot', { Delay: 0 }); json(res, { ok: /Succeed/.test(r.body) }); } catch (e) { json(res, { ok: false }, 500); } }
     else if (p === '/api/camera/synctime' && req.method === 'POST') { try { const r = await lapi(cam, 'PUT', 'System/Time', { TimeZone: 'GMT+04:00', DeviceTime: Math.floor(Date.now() / 1000) }); json(res, { ok: /Succeed/.test(r.body) }); } catch (e) { json(res, { ok: false }, 500); } }
     // ayarlar (seçili kameranın parametrləri)
