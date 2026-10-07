@@ -202,6 +202,8 @@ body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background
 .pnav:hover{background:var(--accent);border-color:var(--accent);transform:translateY(-50%) scale(1.12);box-shadow:0 4px 16px var(--glow)}
 .pprev{left:14px}.pnext{right:14px}
 @media(max-width:600px){.pnav{width:40px;height:40px;font-size:22px}.pprev{left:8px}.pnext{right:8px}}
+.loadmore{display:flex;justify-content:center;padding:18px 0 6px}
+.loadmore .btn{padding:11px 22px;font-size:13px}
 .cutbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;margin-top:10px;background:var(--panel2);border:1px solid var(--border);border-radius:12px}
 .cutbar .cuttag{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--gold)}
 .cutbar .cuttag svg{width:16px;height:16px;fill:var(--gold)}
@@ -1008,11 +1010,18 @@ buildPad($('#livePad'));buildZoom($('#liveZoom'));
 $('#spd').addEventListener('input',e=>$('#spdVal').textContent=e.target.value);
 
 /* YAZILAR */
-async function loadRecs(){RECS=await api('/api/recordings');$('#nRec').textContent=RECS.length;renderRecs();}
-function renderRecs(){const q=($('#recSearch').value||'').toLowerCase();const list=RECS.filter(r=>r.name.toLowerCase().includes(q));const box=$('#recBox');
-  if(!list.length){box.innerHTML=emptyBox('record','Hələ yazı yoxdur','Yazılma işləyirsə bir az sonra görünəcək');return;}
-  const g={};list.forEach(r=>{(g[dayKey(r.date)]=g[dayKey(r.date)]||[]).push(r);});
-  box.innerHTML=Object.keys(g).map(k=>{const it=g[k];return `<div class="day-group"><div class="day-head"><div class="di"><svg viewBox="0 0 24 24"><path d="M7 2v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7zm12 7v10H5V9h14z"/></svg></div><h4>${dayLabel(it[0].date)}</h4><span class="c">${it.length} yazı · ${fmtSize(it.reduce((s,i)=>s+i.size,0))}</span></div><div class="rec-grid">${it.map((r,i)=>recCard(r,i)).join('')}</div></div>`;}).join('');}
+async function loadRecs(){resetPage('rec');RECS=await api('/api/recordings');$('#nRec').textContent=RECS.length;renderRecs();}
+// SƏHİFƏLƏMƏ — minlərlə şəkil/videonu birdən yükləmə, scroll etdikcə əlavə olunsun
+const PAGE=120;let shown={pho:PAGE,mot:PAGE,rec:PAGE,mv:PAGE};
+function resetPage(k){shown[k]=PAGE;}
+function showMore(k){shown[k]+=PAGE;reRender(k);}
+function moreHtml(k,total){const rem=total-shown[k];if(rem<=0)return '';return `<div class="loadmore" id="more-${k}" data-k="${k}"><button class="btn" onclick="showMore('${k}')"><svg viewBox="0 0 24 24"><path d="M12 16l-6-6 1.4-1.4L12 13.2l4.6-4.6L18 10z"/></svg>Daha ${Math.min(PAGE,rem)} göstər · ${rem} qalıb</button></div>`;}
+let moreObs=null;
+function attachMore(k){const el=document.getElementById('more-'+k);if(!el)return;if(!moreObs)moreObs=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)showMore(e.target.dataset.k);}),{rootMargin:'400px'});moreObs.observe(el);}
+function renderRecs(){const q=($('#recSearch').value||'').toLowerCase();const full=RECS.filter(r=>r.name.toLowerCase().includes(q));const box=$('#recBox');
+  if(!full.length){box.innerHTML=emptyBox('record','Hələ yazı yoxdur','Yazılma işləyirsə bir az sonra görünəcək');return;}
+  const list=full.slice(0,shown.rec);const g={};list.forEach(r=>{(g[dayKey(r.date)]=g[dayKey(r.date)]||[]).push(r);});
+  box.innerHTML=Object.keys(g).map(k=>{const it=g[k];return `<div class="day-group"><div class="day-head"><div class="di"><svg viewBox="0 0 24 24"><path d="M7 2v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7zm12 7v10H5V9h14z"/></svg></div><h4>${dayLabel(it[0].date)}</h4><span class="c">${it.length} yazı · ${fmtSize(it.reduce((s,i)=>s+i.size,0))}</span></div><div class="rec-grid">${it.map((r,i)=>recCard(r,i)).join('')}</div></div>`;}).join('')+moreHtml('rec',full.length);attachMore('rec');}
 function recCard(r,i){const on=SEL.rec.has(r.name);const writing=!r.ready;
   const durTxt=writing?`<span class="time live-dur" data-start="${r.date}" style="background:rgba(239,68,68,.85)">⏺ ${fmt((Date.now()-r.date)/1000)}</span>`:`<span class="time">${fmt(r.dur||0)}</span>`;
   return `<div class="rec ${on?'sel':''}" style="animation-delay:${i*30}ms">
@@ -1028,13 +1037,13 @@ function recCard(r,i){const on=SEL.rec.has(r.name);const writing=!r.ready;
 function emptyBox(ic,t,s){const icons={record:'M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm6 4v8l6-4-6-4z',cam:'M12 15.2A3.2 3.2 0 1 0 12 8.8a3.2 3.2 0 0 0 0 6.4zM9 3L7.2 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3H9z'};return `<div class="empty"><svg viewBox="0 0 24 24"><path d="${icons[ic]}"/></svg><p>${t}</p><div class="sm">${s||''}</div></div>`;}
 
 /* QALEREYA (şəkillər + hərəkət) */
-async function loadPhotos(){DATA.pho=await api('/api/photos');$('#nPho').textContent=DATA.pho.length;renderGal('pho');}
-async function loadMotion(){DATA.mot=await api('/api/motion');$('#nMot').textContent=DATA.mot.length;renderGal('mot');}
-async function loadMvids(){MVIDS=await api('/api/motionvideos');$('#nMvid').textContent=MVIDS.length;renderMvids();}
-function renderMvids(){const q=($('#mvSearch').value||'').toLowerCase();const list=MVIDS.filter(r=>r.name.toLowerCase().includes(q)||dayKey(r.date).includes(q));const box=$('#mvBox');
-  if(!list.length){box.innerHTML=emptyBox('record','Hələ hərəkət videosu yoxdur','Hərəkət olanda avtomatik klip yazılacaq');return;}
-  const g={};list.forEach(r=>{(g[dayKey(r.date)]=g[dayKey(r.date)]||[]).push(r);});
-  box.innerHTML=Object.keys(g).map(k=>{const it=g[k];return `<div class="day-group"><div class="day-head"><div class="di"><svg viewBox="0 0 24 24"><path d="M15 8v8H5V8h10m1-2H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4V7a1 1 0 0 0-1-1z"/></svg></div><h4>${dayLabel(it[0].date)}</h4><span class="c">${it.length} klip</span></div><div class="rec-grid">${it.map((r,i)=>mvCard(r,i)).join('')}</div></div>`;}).join('');}
+async function loadPhotos(){resetPage('pho');DATA.pho=await api('/api/photos');$('#nPho').textContent=DATA.pho.length;renderGal('pho');}
+async function loadMotion(){resetPage('mot');DATA.mot=await api('/api/motion');$('#nMot').textContent=DATA.mot.length;renderGal('mot');}
+async function loadMvids(){resetPage('mv');MVIDS=await api('/api/motionvideos');$('#nMvid').textContent=MVIDS.length;renderMvids();}
+function renderMvids(){const q=($('#mvSearch').value||'').toLowerCase();const full=MVIDS.filter(r=>r.name.toLowerCase().includes(q)||dayKey(r.date).includes(q));const box=$('#mvBox');
+  if(!full.length){box.innerHTML=emptyBox('record','Hələ hərəkət videosu yoxdur','Hərəkət olanda avtomatik klip yazılacaq');return;}
+  const list=full.slice(0,shown.mv);const g={};list.forEach(r=>{(g[dayKey(r.date)]=g[dayKey(r.date)]||[]).push(r);});
+  box.innerHTML=Object.keys(g).map(k=>{const it=g[k];return `<div class="day-group"><div class="day-head"><div class="di"><svg viewBox="0 0 24 24"><path d="M15 8v8H5V8h10m1-2H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4V7a1 1 0 0 0-1-1z"/></svg></div><h4>${dayLabel(it[0].date)}</h4><span class="c">${it.length} klip</span></div><div class="rec-grid">${it.map((r,i)=>mvCard(r,i)).join('')}</div></div>`;}).join('')+moreHtml('mv',full.length);attachMore('mv');}
 function mvCard(r,i){const on=SEL.mv.has(r.name);const writing=!r.ready;
   return `<div class="rec ${on?'sel':''}" style="animation-delay:${i*30}ms">
     ${selOn.mv&&!writing?`<div class="chk ${on?'on':''}" onclick="toggleSel('mv','${r.name}')"><svg viewBox="0 0 24 24"><path d="M9 16.2l-3.5-3.5L4 14.2 9 19 20 8l-1.5-1.5z"/></svg></div>`:''}
@@ -1048,15 +1057,15 @@ function mvCard(r,i){const on=SEL.mv.has(r.name);const writing=!r.ready;
       <span class="act" onclick="event.stopPropagation();delOne('mv','${r.name}')" title="Sil"><svg viewBox="0 0 24 24"><path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2H8l1-2z"/></svg></span>`}</div></div>`;}
 function dlMv(name){toast('H.264-ə çevrilir (paylaşıma hazırlanır)…');const a=document.createElement('a');a.href=M('/share/mv/'+encodeURIComponent(name));a.download=name;a.click();}
 async function renameVid(kind,name){const nn=await askPrompt('Yeni ad:',name.replace(/\.mp4$/i,''),{title:'Videonu adlandır'});if(!nn)return;const r=await api('/api/rename/'+kind,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from:name,to:nn})});if(r&&r.ok){toast('Adı dəyişdi ✓','ok');if(kind==='rec')loadRecs();else loadMvids();}else toast(r&&r.err?r.err:'Alınmadı','err');}
-function galCfg(k){return k==='pho'?{box:'#phoBox',search:'#phoSearch',serve:'/photo/',empty:['cam','Hələ şəkil yoxdur','"Yeni Şəkil Çək" düyməsi ilə şəkil çəkin']}:{box:'#motBox',search:'#motSearch',serve:'/motion/',empty:['cam','Hələ hərəkət aşkarlanmayıb','Kamera qarşısında hərəkət olanda şəkil çəkiləcək']};}
-function renderGal(k){const c=galCfg(k);const q=($(c.search).value||'').toLowerCase();const list=DATA[k].filter(m=>m.name.toLowerCase().includes(q)||dayKey(m.date).includes(q));const box=$(c.box);
-  if(!list.length){box.innerHTML=emptyBox(c.empty[0],c.empty[1],c.empty[2]);return;}
-  const g={};list.forEach(m=>{(g[dayKey(m.date)]=g[dayKey(m.date)]||[]).push(m);});
-  box.innerHTML=Object.keys(g).map(key=>{const it=g[key];return `<div class="day-group"><div class="day-head"><div class="di"><svg viewBox="0 0 24 24"><path d="M12 15.2A3.2 3.2 0 1 0 12 8.8a3.2 3.2 0 0 0 0 6.4zM9 3L7.2 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3H9z"/></svg></div><h4>${dayLabel(it[0].date)}</h4><span class="c">${it.length} şəkil</span></div><div class="gal-grid">${it.map((m,i)=>galCard(k,m,i)).join('')}</div></div>`;}).join('');}
+function galCfg(k){return k==='pho'?{box:'#phoBox',search:'#phoSearch',serve:'/photo/',thumb:'/ithumb/photo/',empty:['cam','Hələ şəkil yoxdur','"Yeni Şəkil Çək" düyməsi ilə şəkil çəkin']}:{box:'#motBox',search:'#motSearch',serve:'/motion/',thumb:'/ithumb/motion/',empty:['cam','Hələ hərəkət aşkarlanmayıb','Kamera qarşısında hərəkət olanda şəkil çəkiləcək']};}
+function renderGal(k){const c=galCfg(k);const q=($(c.search).value||'').toLowerCase();const full=DATA[k].filter(m=>m.name.toLowerCase().includes(q)||dayKey(m.date).includes(q));const box=$(c.box);
+  if(!full.length){box.innerHTML=emptyBox(c.empty[0],c.empty[1],c.empty[2]);return;}
+  const list=full.slice(0,shown[k]);const g={};list.forEach(m=>{(g[dayKey(m.date)]=g[dayKey(m.date)]||[]).push(m);});
+  box.innerHTML=Object.keys(g).map(key=>{const it=g[key];return `<div class="day-group"><div class="day-head"><div class="di"><svg viewBox="0 0 24 24"><path d="M12 15.2A3.2 3.2 0 1 0 12 8.8a3.2 3.2 0 0 0 0 6.4zM9 3L7.2 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3H9z"/></svg></div><h4>${dayLabel(it[0].date)}</h4><span class="c">${it.length} şəkil</span></div><div class="gal-grid">${it.map((m,i)=>galCard(k,m,i)).join('')}</div></div>`;}).join('')+moreHtml(k,full.length);attachMore(k);}
 function galCard(k,m,i){const c=galCfg(k);const on=SEL[k].has(m.name);const gi=DATA[k].indexOf(m);
   return `<div class="ph ${on?'sel':''}" style="animation-delay:${i*25}ms" onclick="${selOn[k]?`toggleSel('${k}','${m.name}')`:`lbOpen('${k}',${gi})`}">
     ${selOn[k]?`<div class="chk ${on?'on':''}"><svg viewBox="0 0 24 24"><path d="M9 16.2l-3.5-3.5L4 14.2 9 19 20 8l-1.5-1.5z"/></svg></div>`:''}
-    <img loading="lazy" src="${M(c.serve+m.name)}" alt="">
+    <img loading="lazy" src="${M(c.thumb+m.name)}" alt="">
     ${selOn[k]?'':`<span class="act" onclick="event.stopPropagation();delOne('${k}','${m.name}')"><svg viewBox="0 0 24 24"><path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2H8l1-2z"/></svg></span>`}
     <span class="tm"><span>${new Date(m.date).toLocaleTimeString('az-AZ')}</span><span>${fmtSize(m.size)}</span></span></div>`;}
 

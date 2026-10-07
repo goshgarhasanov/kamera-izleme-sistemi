@@ -375,6 +375,9 @@ function cutVideo(req, res, cam, kind, name, q) {
   ff.on('error', () => { try { res.writeHead(500); res.end(); } catch (e) {} });
 }
 function serveImg(req, res, cam, kind, name) { const p = safeName(cam, kind, 'jpg', name); if (!p || !fs.existsSync(p)) { res.writeHead(404); return res.end('yoxdur'); } res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'max-age=3600' }); fs.createReadStream(p).pipe(res); }
+// THUMBNAIL NÖVBƏSİ — eyni anda çoxlu ffmpeg açılıb serveri boğmasın (min. kadr generasiyası məhdud)
+let thumbRunning = 0; const thumbQueue = []; const THUMB_MAX = 3;
+function thumbRun(job) { if (thumbRunning < THUMB_MAX) { thumbRunning++; job(() => { thumbRunning--; const n = thumbQueue.shift(); if (n) thumbRun(n); }); } else thumbQueue.push(job); }
 // video kadrı (thumbnail) — önbelleklə
 function serveThumb(req, res, cam, kind, name) {
   const vid = safeName(cam, kind, 'mp4', name); if (!vid || !fs.existsSync(vid)) { res.writeHead(404); return res.end('yox'); }
@@ -382,9 +385,26 @@ function serveThumb(req, res, cam, kind, name) {
   const tp = path.join(tdir, name + '.jpg');
   const send = () => { res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'max-age=86400' }); fs.createReadStream(tp).pipe(res); };
   if (fs.existsSync(tp)) return send();
-  const ff = spawn('ffmpeg', ['-nostdin', '-loglevel', 'error', '-ss', '1', '-i', vid, '-frames:v', '1', '-update', '1', '-vf', 'scale=320:-2', '-y', tp], { stdio: ['ignore', 'ignore', 'ignore'] });
-  ff.on('exit', () => { if (fs.existsSync(tp)) send(); else { res.writeHead(404); res.end(); } });
-  ff.on('error', () => { res.writeHead(500); res.end(); });
+  thumbRun(done => {
+    if (fs.existsSync(tp)) { done(); return send(); } // növbə gözləyərkən yarandısa
+    const ff = spawn('ffmpeg', ['-nostdin', '-loglevel', 'error', '-ss', '1', '-i', vid, '-frames:v', '1', '-update', '1', '-vf', 'scale=320:-2', '-y', tp], { stdio: ['ignore', 'ignore', 'ignore'] });
+    ff.on('exit', () => { done(); if (fs.existsSync(tp)) send(); else { res.writeHead(404); res.end(); } });
+    ff.on('error', () => { done(); try { res.writeHead(500); res.end(); } catch (e) {} });
+  });
+}
+// şəkil thumbnail — qalereya üçün kiçildilmiş JPEG (tam ölçü ~1.7MB yerinə ~20KB), önbelleklə
+function serveImgThumb(req, res, cam, kind, name) {
+  const src = safeName(cam, kind, 'jpg', name); if (!src || !fs.existsSync(src)) { res.writeHead(404); return res.end('yox'); }
+  const tdir = path.join(dirOf(cam, kind), '.thumbs'); try { fs.mkdirSync(tdir, { recursive: true }); } catch (e) {}
+  const tp = path.join(tdir, name);
+  const send = () => { res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'max-age=86400' }); fs.createReadStream(tp).pipe(res); };
+  if (fs.existsSync(tp)) return send();
+  thumbRun(done => {
+    if (fs.existsSync(tp)) { done(); return send(); }
+    const ff = spawn('ffmpeg', ['-nostdin', '-loglevel', 'error', '-i', src, '-vf', 'scale=360:-2', '-q:v', '5', '-y', tp], { stdio: ['ignore', 'ignore', 'ignore'] });
+    ff.on('exit', () => { done(); if (fs.existsSync(tp)) send(); else { try { res.writeHead(200, { 'Content-Type': 'image/jpeg' }); fs.createReadStream(src).pipe(res); } catch (e) { res.writeHead(404); res.end(); } } });
+    ff.on('error', () => { done(); try { fs.createReadStream(src).pipe(res); } catch (e) { res.writeHead(500); res.end(); } });
+  });
 }
 
 // ---------- ONVIF PTZ / LAPI (hər kamera) ----------
@@ -528,6 +548,7 @@ const server = http.createServer(async (req, res) => {
     else if (p === '/api/motion' && req.method === 'GET') json(res, listDir(cam, 'hareket', 'jpg'));
     else if (p === '/api/motion/batch-delete' && req.method === 'POST') { const b = await readBody(req); json(res, batchDelete(cam, 'hareket', 'jpg', b.names, b.all)); }
     else if (p.startsWith('/api/motion/') && req.method === 'DELETE') json(res, batchDelete(cam, 'hareket', 'jpg', [p.replace('/api/motion/', '')]));
+    else if (p.startsWith('/ithumb/motion/')) serveImgThumb(req, res, cam, 'hareket', p.replace('/ithumb/motion/', ''));
     else if (p.startsWith('/motion/')) serveImg(req, res, cam, 'hareket', p.replace('/motion/', ''));
     // hərəkət videoları
     else if (p === '/api/motionvideos' && req.method === 'GET') json(res, await videosWithDur(cam, 'hareket_video'));
@@ -540,6 +561,7 @@ const server = http.createServer(async (req, res) => {
     else if (p === '/api/photos' && req.method === 'GET') json(res, listDir(cam, 'resimler', 'jpg'));
     else if (p === '/api/photos/batch-delete' && req.method === 'POST') { const b = await readBody(req); json(res, batchDelete(cam, 'resimler', 'jpg', b.names, b.all)); }
     else if (p.startsWith('/api/photos/') && req.method === 'DELETE') json(res, batchDelete(cam, 'resimler', 'jpg', [p.replace('/api/photos/', '')]));
+    else if (p.startsWith('/ithumb/photo/')) serveImgThumb(req, res, cam, 'resimler', p.replace('/ithumb/photo/', ''));
     else if (p.startsWith('/photo/')) serveImg(req, res, cam, 'resimler', p.replace('/photo/', ''));
     // yazılma idarə
     else if (p === '/api/recording/start' && req.method === 'POST') { startRec(cam); json(res, { ok: true, active: true }); }
