@@ -55,6 +55,25 @@ const enc = s => encodeURIComponent(s || '');
 const mainUrl = cam => `rtsp://${cam.user}:${enc(cam.pass)}@${cam.ip}:554/media/video1`;
 const subUrl = cam => `rtsp://${cam.user}:${enc(cam.pass)}@${cam.ip}:554/media/video2`;
 
+// ---------- GİRİŞ / PIN (6 rəqəm, 5 səhvdən sonra 5 dəq blok) ----------
+const AUTH_FILE = path.join(ROOT, 'auth.json');
+function loadAuth() { try { if (fs.existsSync(AUTH_FILE)) return JSON.parse(fs.readFileSync(AUTH_FILE, 'utf8')); } catch (e) {} return { pin: '123456' }; }
+function saveAuth(a) { try { fs.writeFileSync(AUTH_FILE, JSON.stringify(a, null, 2)); } catch (e) { log('auth.json yazılmadı: ' + e.message); } }
+if (!fs.existsSync(AUTH_FILE)) saveAuth(loadAuth()); // ilk işə düşəndə default PIN: 123456
+const authTokens = new Set();
+const AUTH_MAX = 5, AUTH_LOCK_MS = 5 * 60 * 1000;
+let authFails = 0, authLockUntil = 0;
+function authState() { const now = Date.now(); if (authLockUntil && authLockUntil <= now) { authFails = 0; authLockUntil = 0; } return { locked: authLockUntil > now, wait: authLockUntil > now ? Math.ceil((authLockUntil - now) / 1000) : 0, left: Math.max(0, AUTH_MAX - authFails) }; }
+function checkPin(pin) {
+  const s = authState(); if (s.locked) return { ok: false, locked: true, wait: s.wait };
+  if (String(pin || '') === String(loadAuth().pin)) { authFails = 0; return { ok: true }; }
+  authFails++;
+  if (authFails >= AUTH_MAX) { authLockUntil = Date.now() + AUTH_LOCK_MS; return { ok: false, locked: true, wait: Math.ceil(AUTH_LOCK_MS / 1000), left: 0 }; }
+  return { ok: false, left: AUTH_MAX - authFails };
+}
+function issueToken(res) { const t = crypto.randomBytes(24).toString('hex'); authTokens.add(t); res.setHeader('Set-Cookie', `k_auth=${t}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800`); }
+function isAuthed(req) { const m = (req.headers.cookie || '').match(/k_auth=([a-f0-9]+)/); return !!(m && authTokens.has(m[1])); }
+
 // ---------- KÖMƏKÇİLƏR ----------
 function json(res, obj, code = 200) { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(obj)); }
 function readBody(req) { return new Promise(r => { let d = ''; req.on('data', c => { d += c; if (d.length > 1e6) d = d.slice(0, 1e6); }); req.on('end', () => { try { r(JSON.parse(d || '{}')); } catch (e) { r({}); } }); req.on('error', () => r({})); }); }
@@ -510,6 +529,13 @@ const server = http.createServer(async (req, res) => {
   const u = new URL(req.url, `http://${req.headers.host}`), p = decodeURIComponent(u.pathname), q = u.searchParams;
   const cam = getCam(q.get('cam'));
   try {
+    // ---- GİRİŞ / PIN ----
+    if (p === '/api/auth/status' && req.method === 'GET') { const s = authState(); return json(res, { authed: isAuthed(req), locked: s.locked, wait: s.wait, left: s.left }); }
+    if (p === '/api/auth/login' && req.method === 'POST') { const b = await readBody(req); const r = checkPin(b.pin); if (r.ok) issueToken(res); return json(res, r); }
+    if (p === '/api/auth/verify' && req.method === 'POST') { const b = await readBody(req); return json(res, checkPin(b.pin)); }
+    if (p === '/api/auth/change' && req.method === 'POST') { if (!isAuthed(req)) return json(res, { ok: false, err: 'Giriş tələb olunur' }, 401); const b = await readBody(req); if (String(b.old || '') !== String(loadAuth().pin)) return json(res, { ok: false, err: 'Köhnə PIN yanlış' }); if (!/^\d{6}$/.test(String(b.pin || ''))) return json(res, { ok: false, err: 'PIN 6 rəqəm olmalıdır' }); saveAuth({ pin: String(b.pin) }); log('PIN dəyişdirildi'); return json(res, { ok: true }); }
+    // silmə əməliyyatları yalnız girişdən sonra
+    if (((req.method === 'DELETE' && p.startsWith('/api/')) || p.endsWith('/batch-delete')) && !isAuthed(req)) return json(res, { ok: false, err: 'Giriş tələb olunur' }, 401);
     if (p === '/' || p === '/index.html') { fs.readFile(path.join(__dirname, 'public', 'index.html'), (e, d) => { if (e) { res.writeHead(500); return res.end('index.html yox'); } res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); res.end(d); }); }
     // kameralar
     else if (p === '/api/cameras' && req.method === 'GET') json(res, CAMS.map(c => ({ id: c.id, name: c.name, ip: c.ip, user: c.user })));

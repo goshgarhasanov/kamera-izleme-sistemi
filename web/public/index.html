@@ -202,6 +202,27 @@ body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background
 .pnav:hover{background:var(--accent);border-color:var(--accent);transform:translateY(-50%) scale(1.12);box-shadow:0 4px 16px var(--glow)}
 .pprev{left:14px}.pnext{right:14px}
 @media(max-width:600px){.pnav{width:40px;height:40px;font-size:22px}.pprev{left:8px}.pnext{right:8px}}
+/* PIN / GİRİŞ */
+.auth-overlay{position:fixed;inset:0;z-index:200;background:rgba(10,7,4,.82);backdrop-filter:blur(10px);display:none;align-items:center;justify-content:center;padding:18px}
+.auth-overlay.open{display:flex}
+.auth-card{width:100%;max-width:330px;background:linear-gradient(160deg,var(--panel),var(--panel2));border:1px solid var(--border);border-radius:22px;padding:26px 22px;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.5);animation:pop .25s}
+@keyframes pop{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
+.auth-lock{width:58px;height:58px;margin:0 auto 12px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--accent),var(--gold));box-shadow:0 6px 20px var(--glow)}
+.auth-lock svg{width:30px;height:30px;fill:#1a1206}
+.auth-card h2{font-size:17px;margin:0 0 16px;color:var(--text);font-weight:700}
+.pin-dots{display:flex;gap:12px;justify-content:center;margin-bottom:12px}
+.pin-dots .pdot{width:15px;height:15px;border-radius:50%;border:2px solid var(--border);background:transparent;transition:.15s}
+.pin-dots .pdot.on{background:var(--accent);border-color:var(--accent);box-shadow:0 0 10px var(--glow);transform:scale(1.1)}
+.pin-msg{min-height:20px;font-size:12.5px;color:var(--muted);margin-bottom:14px}
+.pin-msg.err{color:#f87171;font-weight:600}
+.pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;margin-bottom:14px}
+.pin-pad button{aspect-ratio:1;border:1px solid var(--border);background:var(--panel2);color:var(--text);font-size:22px;font-weight:600;border-radius:14px;cursor:pointer;transition:.12s;display:flex;align-items:center;justify-content:center}
+.pin-pad button:hover{background:var(--accent);color:#1a1206;border-color:var(--accent);transform:translateY(-2px)}
+.pin-pad button:active{transform:scale(.94)}
+.pin-pad .pk-ok{background:linear-gradient(135deg,var(--gold),var(--accent));color:#1a1206;border-color:var(--gold)}
+.pin-pad .pk-x{font-size:19px}
+.pin-cancel{background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:8px}
+.pin-cancel:hover{color:var(--text)}
 .loadmore{display:flex;justify-content:center;padding:18px 0 6px}
 .loadmore .btn{padding:11px 22px;font-size:13px}
 .cutbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;margin-top:10px;background:var(--panel2);border:1px solid var(--border);border-radius:12px}
@@ -637,6 +658,13 @@ img,video,canvas,svg{max-width:100%}
           <div class="card-h"><svg viewBox="0 0 24 24"><path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z"/></svg><h3>Kameralar</h3><div class="tools"><button class="btn sm primary" onclick="addCamera()">+ Yeni Kamera</button></div></div>
           <div id="camList"></div>
         </div>
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-h"><svg viewBox="0 0 24 24"><path d="M12 1a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5zm3 8H9V6a3 3 0 0 1 6 0v3z"/></svg><h3>Təhlükəsizlik · PIN</h3></div>
+          <div style="padding:20px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap">
+            <div style="font-size:13px;color:var(--muted);max-width:480px">Tətbiqə giriş və silmə əməliyyatları 6 rəqəmli PIN tələb edir. 5 səhvdən sonra 5 dəqiqə bloklanır. <b style="color:var(--text)">İlkin PIN: 123456</b> — dəyişdirməyi unutmayın.</div>
+            <button class="btn primary" onclick="changePin()"><svg viewBox="0 0 24 24"><path d="M12 1a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5zm3 8H9V6a3 3 0 0 1 6 0v3z"/></svg>PIN dəyiş</button>
+          </div>
+        </div>
         <div class="set-grid">
           <div class="card">
             <div class="card-h"><svg viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/></svg><h3>Kamera Konfiqurasiyası</h3></div>
@@ -683,6 +711,18 @@ img,video,canvas,svg{max-width:100%}
       </section>
     </div>
   </main>
+</div>
+
+<!-- PIN / GİRİŞ -->
+<div class="auth-overlay" id="pinOv">
+  <div class="auth-card">
+    <div class="auth-lock"><svg viewBox="0 0 24 24"><path d="M12 1a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5zm3 8H9V6a3 3 0 0 1 6 0v3zm-3 5a1.6 1.6 0 0 1 1 2.9V20h-2v-3.1A1.6 1.6 0 0 1 12 14z"/></svg></div>
+    <h2 id="pinTitle">PIN daxil edin</h2>
+    <div class="pin-dots" id="pinDots"></div>
+    <div class="pin-msg" id="pinMsg"></div>
+    <div class="pin-pad" id="pinPad"></div>
+    <button class="pin-cancel" id="pinCancel" onclick="pinCancel()">Ləğv et</button>
+  </div>
 </div>
 
 <!-- LIGHTBOX -->
@@ -1077,13 +1117,13 @@ function updSel(k){$('#selcnt-'+k).textContent=SEL[k].size+' seçildi';}
 function reRender(k){k==='rec'?renderRecs():k==='mv'?renderMvids():renderGal(k);}
 const EP={rec:'/api/recordings',pho:'/api/photos',mot:'/api/motion',mv:'/api/motionvideos'};
 const LIST={rec:()=>RECS,pho:()=>DATA.pho,mot:()=>DATA.mot,mv:()=>MVIDS};
-async function delSelected(k){if(!SEL[k].size)return toast('Heç nə seçilməyib','err');if(!await askConfirm(SEL[k].size+' element silinsin?',{title:'Seçilənləri sil',danger:true,okText:'Sil'}))return;
+async function delSelected(k){if(!SEL[k].size)return toast('Heç nə seçilməyib','err');if(!await requirePin(SEL[k].size+' element silmək üçün PIN daxil edin'))return;
   const r=await api(EP[k]+'/batch-delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({names:[...SEL[k]]})});
   toast((r.deleted||0)+' element silindi','ok');SEL[k].clear();refresh(k);}
-async function delAll(k){const list=LIST[k]();if(!list.length)return;if(!await askConfirm('Hamısı ('+list.length+' ədəd) silinsin?\nBu əməliyyat geri qaytarıla bilməz!',{title:'Hamısını sil',danger:true,okText:'Hamısını sil'}))return;
+async function delAll(k){const list=LIST[k]();if(!list.length)return;if(!await askConfirm('Hamısı ('+list.length+' ədəd) silinsin?\nBu əməliyyat geri qaytarıla bilməz!',{title:'Hamısını sil',danger:true,okText:'Hamısını sil'}))return;if(!await requirePin('Hamısını silmək üçün PIN daxil edin'))return;
   const r=await api(EP[k]+'/batch-delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({all:true})});
   toast((r.deleted||0)+' element silindi','ok');SEL[k].clear();refresh(k);}
-async function delOne(k,name){if(!await askConfirm('Bu silinsin?\n'+name,{title:'Sil',danger:true,okText:'Sil'}))return;
+async function delOne(k,name){if(!await requirePin('Silmək üçün PIN daxil edin'))return;
   await api(EP[k]+'/'+encodeURIComponent(name),{method:'DELETE'});toast('Silindi');refresh(k);}
 function refresh(k){({rec:loadRecs,pho:loadPhotos,mot:loadMotion,mv:loadMvids}[k])();loadStatus();}
 
@@ -1116,7 +1156,7 @@ function lbNav(d){if(lbSingle)return;lbIdx=(lbIdx+d+DATA[lbKey].length)%DATA[lbK
 function lbReset(){lbScale=1;lbX=0;lbY=0;lbApply();}function lbZoom(d){lbScale=Math.min(6,Math.max(1,lbScale+d));if(lbScale===1){lbX=0;lbY=0;}lbApply();}
 function lbApply(){$('#lbImg').style.transform=`translate(${lbX}px,${lbY}px) scale(${lbScale})`;$('#lbZ').textContent='%'+Math.round(lbScale*100);}
 function lbDl(){if(lbSingle){const a=document.createElement('a');a.href=$('#lbImg').src;a.download='hadise.jpg';a.click();return;}const m=DATA[lbKey][lbIdx];const c=galCfg(lbKey);const a=document.createElement('a');a.href=M(c.serve+m.name);a.download=m.name;a.click();}
-async function lbDel(){if(lbSingle){lbClose();return;}const m=DATA[lbKey][lbIdx];if(!await askConfirm('Bu şəkil silinsin?',{title:'Şəkli sil',danger:true,okText:'Sil'}))return;const ep=lbKey==='pho'?'/api/photos/':'/api/motion/';await api(ep+encodeURIComponent(m.name),{method:'DELETE'});lbClose();refresh(lbKey);}
+async function lbDel(){if(lbSingle){lbClose();return;}const m=DATA[lbKey][lbIdx];if(!await requirePin('Şəkli silmək üçün PIN daxil edin'))return;const ep=lbKey==='pho'?'/api/photos/':'/api/motion/';await api(ep+encodeURIComponent(m.name),{method:'DELETE'});lbClose();refresh(lbKey);}
 const lbStage=$('#lbStage');
 lbStage.addEventListener('wheel',e=>{e.preventDefault();lbZoom(e.deltaY<0?.3:-.3);},{passive:false});
 lbStage.addEventListener('mousedown',e=>{if(lbScale<=1)return;lbDrag=true;lbStage.classList.add('drag');lbSX=e.clientX-lbX;lbSY=e.clientY-lbY;});
@@ -1225,7 +1265,7 @@ async function uploadSound(file){if(!file)return;const name=file.name;toast('Yü
   try{await fetch('/api/sounds/upload?name='+encodeURIComponent(name),{method:'POST',body:file});toast('Yükləndi ✓','ok');loadSounds();}catch(e){toast('Xəta','err');}}
 function sndRep(){return ($('#sndRepeat')&&$('#sndRepeat').value)||'1';}
 async function playSound(name){toast('Kameraya göndərilir…');const r=await api('/api/sounds/play?name='+encodeURIComponent(name)+'&repeat='+sndRep(),{method:'POST'});toast(r.ok?'🔊 Kameradan səsləndi ✓':'Alınmadı',r.ok?'ok':'err');}
-async function delSound(name){if(!await askConfirm(name+' silinsin?',{title:'Səsi sil',danger:true,okText:'Sil'}))return;await fetch('/api/sounds/'+encodeURIComponent(name),{method:'DELETE'});loadSounds();}
+async function delSound(name){if(!await requirePin('Səsi silmək üçün PIN daxil edin'))return;await fetch('/api/sounds/'+encodeURIComponent(name),{method:'DELETE'});loadSounds();}
 let sndRec=null,sndStream=null,sndChunks=[];
 async function toggleSndRec(){const b=$('#sndRecBtn');if(sndRec){try{sndRec.stop();}catch(e){}return;}
   try{sndStream=await navigator.mediaDevices.getUserMedia({audio:true});}catch(e){return toast('Mikrofon icazəsi yoxdur','err');}
@@ -1258,7 +1298,33 @@ dvrV.addEventListener('timeupdate',()=>{if(!dvrSeg)return;const t=new Date(dvrSe
 dvrV.addEventListener('ended',()=>{const i=dvrSegs.indexOf(dvrSeg);if(i>=0&&i+1<dvrSegs.length)dvrPlay(dvrSegs[i+1],0);});
 
 /* INIT */
-loadCameras().then(()=>{reloadLive();loadStatus();loadSounds();route(curView());});
+/* ===== PIN / GİRİŞ ===== */
+let pinMode='verify',pinVal='',pinCb=null,pinLocked=false,pinLockTimer=null;
+function pinOpen(mode,title,cb){pinMode=mode;pinCb=cb;pinVal='';$('#pinTitle').textContent=title;pinMsg('','');$('#pinCancel').style.display=mode==='login'?'none':'';$('#pinOv').classList.add('open');renderPinDots();buildPinPad();pinCheckLock();}
+function pinClose(){$('#pinOv').classList.remove('open');if(pinLockTimer){clearInterval(pinLockTimer);pinLockTimer=null;}}
+function renderPinDots(){let h='';for(let i=0;i<6;i++)h+=`<span class="pdot ${i<pinVal.length?'on':''}"></span>`;$('#pinDots').innerHTML=h;}
+function buildPinPad(){const pad=$('#pinPad');if(pad._built)return;pad._built=1;let h='';for(let n=1;n<=9;n++)h+=`<button onclick="pinPush('${n}')">${n}</button>`;h+=`<button class="pk-x" onclick="pinBack()">⌫</button><button onclick="pinPush('0')">0</button><button class="pk-ok" onclick="pinSubmit()">✓</button>`;pad.innerHTML=h;}
+function pinPush(d){if(pinLocked||pinVal.length>=6)return;pinVal+=d;renderPinDots();if(pinVal.length===6)pinSubmit();}
+function pinBack(){if(pinLocked)return;pinVal=pinVal.slice(0,-1);renderPinDots();}
+function pinMsg(t,cls){const e=$('#pinMsg');e.textContent=t;e.className='pin-msg '+(cls||'');}
+function fmtSec(s){const m=Math.floor(s/60),x=s%60;return m>0?`${m}:${String(x).padStart(2,'0')}`:x+' san';}
+function startPinLock(sec){pinLocked=true;const tick=()=>{if(sec<=0){pinLocked=false;pinMsg('İndi yenidən cəhd edə bilərsiniz','');if(pinLockTimer){clearInterval(pinLockTimer);pinLockTimer=null;}return;}pinMsg('🔒 5 səhv — bloklandı · '+fmtSec(sec),'err');sec--;};if(pinLockTimer)clearInterval(pinLockTimer);tick();pinLockTimer=setInterval(tick,1000);}
+function pinCheckLock(){fetch('/api/auth/status').then(r=>r.json()).then(s=>{if(s.locked)startPinLock(s.wait||300);}).catch(()=>{});}
+async function pinSubmit(){if(pinLocked)return;if(pinVal.length<6){pinMsg('6 rəqəm daxil edin','err');return;}
+  const ep=pinMode==='login'?'/api/auth/login':'/api/auth/verify';let r;
+  try{r=await (await fetch(ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pinVal})})).json();}catch(e){r={ok:false};}
+  if(r.ok){const cb=pinCb;pinClose();if(cb)cb(true);return;}
+  pinVal='';renderPinDots();
+  if(r.locked)startPinLock(r.wait||300);
+  else pinMsg('Yanlış PIN'+(r.left!=null?' · '+r.left+' cəhd qaldı':''),'err');
+}
+function pinCancel(){const cb=pinCb;pinClose();if(cb)cb(false);}
+function requirePin(title){return new Promise(res=>pinOpen('verify',title||'Silmək üçün PIN daxil edin',res));}
+document.addEventListener('keydown',e=>{if(!$('#pinOv').classList.contains('open'))return;if(e.key>='0'&&e.key<='9')pinPush(e.key);else if(e.key==='Backspace')pinBack();else if(e.key==='Enter')pinSubmit();else if(e.key==='Escape'&&pinMode!=='login')pinCancel();});
+function startApp(){loadCameras().then(()=>{reloadLive();loadStatus();loadSounds();route(curView());});}
+async function changePin(){const o=await askPrompt('Köhnə PIN (6 rəqəm):','',{title:'PIN dəyiş',type:'password'});if(!o)return;const n=await askPrompt('Yeni PIN (6 rəqəm):','',{title:'PIN dəyiş',type:'password'});if(!n)return;if(!/^\d{6}$/.test(n))return toast('Yeni PIN 6 rəqəm olmalıdır','err');const r=await api('/api/auth/change',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({old:o,pin:n})});toast(r.ok?'PIN dəyişdirildi ✓':(r.err||'Alınmadı'),r.ok?'ok':'err');}
+/* giriş qapısı: PIN düz olana qədər tətbiq açılmır */
+fetch('/api/auth/status').then(r=>r.json()).then(s=>{if(s.authed)startApp();else pinOpen('login','Daxil olmaq üçün PIN',ok=>{if(ok)startApp();});}).catch(()=>pinOpen('login','Daxil olmaq üçün PIN',ok=>{if(ok)startApp();}));
 setInterval(loadStatus,5000);
 setInterval(()=>{if($('#view-logs').classList.contains('active'))loadLogs();},5000);
 </script>
