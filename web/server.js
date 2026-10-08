@@ -32,7 +32,7 @@ let CAMS = [];
 function saveCameras() { try { fs.writeFileSync(CAMS_FILE, JSON.stringify(CAMS, null, 2)); } catch (e) { log('cameras.json yazılmadı: ' + e.message); } }
 function dirOf(cam, kind) { return path.join(MEDIA_ROOT, cam.id, kind); }
 function ensureCamDirs(cam) { for (const k of KINDS) { try { fs.mkdirSync(dirOf(cam, k), { recursive: true }); } catch (e) {} } }
-function normCam(c) { return { id: c.id, name: c.name || c.id, ip: c.ip, user: c.user || 'admin', pass: c.pass || '', motionSens: c.motionSens || '0.04', segTime: c.segTime || '3600', motionShots: c.motionShots || '1', recMode: c.recMode || 'continuous', motionMinSize: c.motionMinSize || 'medium' }; }
+function normCam(c) { return { id: c.id, name: c.name || c.id, ip: c.ip, user: c.user || 'admin', pass: c.pass || '', mac: c.mac || '', motionSens: c.motionSens || '0.04', segTime: c.segTime || '3600', motionShots: c.motionShots || '1', recMode: c.recMode || 'continuous', motionMinSize: c.motionMinSize || 'medium' }; }
 const MIN_AREA = { small: 2, medium: 10, large: 26 }; // 32x18 grid-də sərhəd qutusu hüceyrə sahəsi
 function loadCameras() {
   if (fs.existsSync(CAMS_FILE)) { try { return JSON.parse(fs.readFileSync(CAMS_FILE, 'utf8')).map(normCam); } catch (e) { log('cameras.json pozuq: ' + e.message); } }
@@ -213,6 +213,21 @@ function recordMotionClip(cam) {
   }, POST_MS);
 }
 function startCam(cam) { ensureCamDirs(cam); if (cam.recMode !== 'off') startMotion(cam); if (cam.recMode === 'continuous') startRec(cam); }
+// ---------- DİNAMİK IP KƏŞFİ (DHCP IP dəyişsə kameranı MAC ilə tap) ----------
+const macLearning = {}, lastRedisc = {}; let rediscovering = false;
+function primarySubnet() { const ifs = os.networkInterfaces(); for (const n in ifs) for (const a of ifs[n]) if (a.family === 'IPv4' && !a.internal) return a.address.split('.').slice(0, 3).join('.'); return null; }
+function neighTable(cb) { const ff = spawn('ip', ['neigh'], { stdio: ['ignore', 'pipe', 'ignore'] }); let o = ''; ff.stdout.on('data', d => o += d); ff.on('close', () => { const map = {}; for (const line of o.split('\n')) { const m = line.match(/^(\d+\.\d+\.\d+\.\d+)\s+dev\s+\S+\s+lladdr\s+([0-9a-f:]+)/i); if (m) map[m[2].toLowerCase()] = m[1]; } cb(map); }); ff.on('error', () => cb({})); }
+// online kameradan MAC öyrən (gələcəkdə IP dəyişsə tapmaq üçün)
+function learnMac(cam) { if (cam.mac || macLearning[cam.id]) return; macLearning[cam.id] = 1; const pp = spawn('ping', ['-c', '1', '-W', '1', cam.ip], { stdio: 'ignore' }); const fin = () => neighTable(map => { macLearning[cam.id] = 0; for (const mac in map) if (map[mac] === cam.ip) { cam.mac = mac; saveCameras(); log(`[${cam.id}] MAC öyrənildi: ${mac}`); return; } }); pp.on('exit', fin); pp.on('error', fin); }
+// kamera qoşulmursa: şəbəkəni skan et, MAC-a görə yeni IP tap, konfiqi yenilə + yenidən başlat
+function rediscover(cam) {
+  if (!cam.mac || rediscovering) return; rediscovering = true;
+  const pre = primarySubnet(); if (!pre) { rediscovering = false; return; }
+  log(`[${cam.id}] IP axtarılır (MAC ${cam.mac})…`);
+  let pend = 0; for (let i = 1; i <= 254; i++) { pend++; const pp = spawn('ping', ['-c', '1', '-W', '1', `${pre}.${i}`], { stdio: 'ignore' }); const d = () => { if (--pend === 0) finish(); }; pp.on('exit', d); pp.on('error', d); }
+  if (pend === 0) { rediscovering = false; }
+  function finish() { neighTable(map => { rediscovering = false; const ip = map[cam.mac.toLowerCase()]; if (ip && ip !== cam.ip) { log(`[${cam.id}] DHCP IP dəyişib: ${cam.ip} → ${ip}`); cam.ip = ip; saveCameras(); ptzTok[cam.id] = null; imgTok[cam.id] = null; restartCam(cam); } }); }
+}
 // WATCHDOG: kamera axını donanda (ffmpeg çıxmır, sadəcə kilidlənir) prosesi öldür → exit handler yenidən qoşur.
 // Həmçinin olmalı olan proses yoxdursa onu da bərpa edir. Hər 10s-də yoxlayır.
 const FREEZE_MS = 25000;
@@ -226,11 +241,15 @@ function watchdog() {
       if (S && S.lastFrame && Date.now() - S.lastFrame > FREEZE_MS) {
         log(`[${cam.id}] axın dondu (${Math.round((Date.now() - S.lastFrame) / 1000)}s) — yenidən qoşulur`);
         try { ff.kill('SIGKILL'); } catch (e) {}
+      } else if (S && S.lastFrame && Date.now() - S.lastFrame < 15000) {
+        learnMac(c); // onlayn və sağlam → MAC-ı öyrən (IP dəyişəndə lazım olacaq)
       }
     } else {
       // proses yoxdur, amma olmalıdır — bərpa et
       log(`[${cam.id}] hərəkət prosesi yoxdur — başladılır`);
       startMotion(c);
+      // uzun müddət qoşula bilmir → ola bilsin DHCP IP dəyişib; MAC ilə yenidən tap (60s-də bir)
+      const t = Date.now(); if (c.mac && t - (lastRedisc[cam.id] || 0) > 60000) { lastRedisc[cam.id] = t; rediscover(c); }
     }
     // davamlı rejim yazması qopmuşsa bərpa et
     if (c.recMode === 'continuous' && recState[cam.id] && recState[cam.id].enabled && !recProcs[cam.id]) {
@@ -715,4 +734,4 @@ server.on('upgrade', (req, sock) => {
 });
 function shutdown() { log('server bağlanır'); for (const cam of CAMS) { if (recState[cam.id]) recState[cam.id].enabled = false; } for (const m of [recProcs, motionProcs, clipProcs, ringProcs]) for (const id in m) { try { if (m[id]) m[id].kill('SIGTERM'); } catch (e) {} } setTimeout(() => process.exit(0), 1500); }
 process.on('SIGTERM', shutdown); process.on('SIGINT', shutdown);
-server.listen(PORT, () => { log(`dashboard başladı, port ${PORT}, ${CAMS.length} kamera`); console.log(`Kamera dashboard: http://localhost:${PORT}`); CAMS.forEach(startCam); cleanup(); setInterval(cleanup, 15 * 60 * 1000); setInterval(watchdog, 10 * 1000); });
+server.listen(PORT, () => { log(`dashboard başladı, port ${PORT}, ${CAMS.length} kamera`); console.log(`Kamera dashboard: http://localhost:${PORT}`); CAMS.forEach(startCam); cleanup(); setInterval(cleanup, 15 * 60 * 1000); setInterval(watchdog, 10 * 1000); setTimeout(() => CAMS.forEach(learnMac), 15000); });
