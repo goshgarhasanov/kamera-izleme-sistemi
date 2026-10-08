@@ -7,7 +7,6 @@ const os = require('os');
 const crypto = require('crypto');
 const https = require('https');
 const { spawn } = require('child_process');
-const express = require('express');
 
 const ROOT = path.resolve(__dirname, '..');
 const MEDIA_ROOT = path.join(ROOT, 'media');
@@ -100,11 +99,13 @@ async function videosWithDur(cam, kind) {
   let i = 0; const worker = async () => { while (i < toProbe.length) { const r = toProbe[i++]; const ck = cam.id + '/' + r.name + ':' + r.size; durCache[ck] = await probeDur(path.join(dirOf(cam, kind), r.name)); r.dur = durCache[ck]; } };
   await Promise.all([worker(), worker(), worker(), worker()]); return list;
 }
+// faylla birlikdə keş törəmələrini (.thumbs, .h264) sil — orfan keş yığılmasın
+function clearDerivs(fp) { const dir = path.dirname(fp), name = path.basename(fp); for (const d of [path.join(dir, '.thumbs', name), path.join(dir, '.thumbs', name + '.jpg'), path.join(dir, '.h264', name)]) { try { if (fs.existsSync(d)) fs.unlinkSync(d); } catch (e) {} } }
 function batchDelete(cam, kind, ext, names, all, protect) {
   const dir = dirOf(cam, kind); let deleted = 0, failed = 0;
   const valid = n => safeName(cam, kind, ext, n);
   const targets = all ? (() => { try { return fs.readdirSync(dir).filter(f => f.endsWith('.' + ext)); } catch (e) { return []; } })() : (names || []);
-  for (const n of targets) { const p = valid(n); if (!p || !fs.existsSync(p)) { failed++; continue; } if (protect) { try { if (Date.now() - fs.statSync(p).mtimeMs < 8000) { failed++; continue; } } catch (e) {} } try { fs.unlinkSync(p); deleted++; } catch (e) { failed++; } }
+  for (const n of targets) { const p = valid(n); if (!p || !fs.existsSync(p)) { failed++; continue; } if (protect) { try { if (Date.now() - fs.statSync(p).mtimeMs < 8000) { failed++; continue; } } catch (e) {} } try { fs.unlinkSync(p); clearDerivs(p); deleted++; } catch (e) { failed++; } }
   return { deleted, failed };
 }
 function camOnline(cam) { return new Promise(r => { const s = net.connect({ host: cam.ip, port: 554, timeout: 2000 }); s.on('connect', () => { s.destroy(); r(true); }); s.on('error', () => r(false)); s.on('timeout', () => { s.destroy(); r(false); }); }); }
@@ -519,9 +520,9 @@ function allMedia() { const files = []; for (const cam of CAMS) for (const [kind
 function cleanup() {
   try {
     const now = Date.now(); let ra = 0, rs = 0;
-    for (const f of allMedia()) if (now - f.mtime > MAX_AGE_DAYS * 864e5 && now - f.mtime > 8000) { try { fs.unlinkSync(f.fp); ra++; } catch (e) {} }
+    for (const f of allMedia()) if (now - f.mtime > MAX_AGE_DAYS * 864e5 && now - f.mtime > 8000) { try { fs.unlinkSync(f.fp); clearDerivs(f.fp); ra++; } catch (e) {} }
     let free = diskFreeBytes();
-    if (free < MIN_FREE_GB * 1e9) for (const f of allMedia()) { if (free >= MIN_FREE_GB * 1e9) break; if (now - f.mtime < 8000) continue; try { fs.unlinkSync(f.fp); free += f.size; rs++; } catch (e) {} }
+    if (free < MIN_FREE_GB * 1e9) for (const f of allMedia()) { if (free >= MIN_FREE_GB * 1e9) break; if (now - f.mtime < 8000) continue; try { fs.unlinkSync(f.fp); clearDerivs(f.fp); free += f.size; rs++; } catch (e) {} }
     if (ra || rs) log(`təmizlik: ${ra} köhnə, ${rs} yer üçün silindi, boş: ${(free / 1e9).toFixed(0)}GB`);
   } catch (e) { log('təmizlik xətası: ' + e.message); }
 }
