@@ -826,7 +826,7 @@ $('#cfInput').addEventListener('keydown',e=>{if(e.key==='Enter')cfClose($('#cfIn
 document.addEventListener('keydown',e=>{if($('#confirmModal').classList.contains('open')&&e.key==='Escape')cfClose(cfPrompt?null:false);});
 let CAM=localStorage.getItem('cam')||'';let CAMERAS=[];
 function M(url){return url+(url.includes('?')?'&':'?')+'cam='+encodeURIComponent(CAM);}
-async function api(url,opt){try{const r=await fetch(M(url),opt);return await r.json();}catch(e){return{};}}
+async function api(url,opt){try{const r=await fetch(M(url),opt);if(r.status===401){reAuth();return{};}return await r.json();}catch(e){return{};}}
 async function loadCameras(){CAMERAS=await api('/api/cameras');if(!CAMERAS.length)return;if(!CAM||!CAMERAS.find(c=>c.id===CAM)){CAM=CAMERAS[0].id;localStorage.setItem('cam',CAM);}renderCamSwitch();}
 function renderCamSwitch(){const sel=$('#camSwitch');if(!sel)return;sel.innerHTML=CAMERAS.map(c=>`<option value="${c.id}" ${c.id===CAM?'selected':''}>${c.name}</option>`).join('');}
 function switchCam(id){CAM=id;localStorage.setItem('cam',id);renderCamSwitch();reloadLive();loadStatus();route(curView());toast('Kamera: '+(CAMERAS.find(c=>c.id===id)||{}).name,'ok');}
@@ -1322,7 +1322,11 @@ async function pinSubmit(){if(pinLocked)return;if(pinVal.length<6){pinMsg('6 rə
 function pinCancel(){const cb=pinCb;pinClose();if(cb)cb(false);}
 function requirePin(title){return new Promise(res=>{if(Date.now()<sessionUntil)return res(true);pinOpen('verify',title||'Silmək üçün PIN daxil edin',res);});}
 document.addEventListener('keydown',e=>{if(!$('#pinOv').classList.contains('open'))return;if(e.key>='0'&&e.key<='9')pinPush(e.key);else if(e.key==='Backspace')pinBack();else if(e.key==='Enter')pinSubmit();else if(e.key==='Escape'&&pinMode!=='login')pinCancel();});
-function startApp(){loadCameras().then(()=>{reloadLive();loadStatus();loadSounds();route(curView());});}
+let appStarted=false;
+function startApp(){appStarted=true;loadCameras().then(()=>{reloadLive();loadStatus();loadSounds();route(curView());});}
+// sessiya bitəndə və ya 401 gələndə yenidən giriş qapısı
+function reAuth(){if($('#pinOv').classList.contains('open'))return;sessionUntil=0;pinOpen('login','Sessiya bitdi — PIN daxil edin',ok=>{if(ok&&appStarted){reloadLive();loadStatus();route(curView());}});}
+setInterval(()=>{if(appStarted&&sessionUntil&&Date.now()>sessionUntil)reAuth();},20000);
 async function changePin(){const o=await askPrompt('Köhnə PIN (6 rəqəm):','',{title:'PIN dəyiş',type:'password'});if(!o)return;const n=await askPrompt('Yeni PIN (6 rəqəm):','',{title:'PIN dəyiş',type:'password'});if(!n)return;if(!/^\d{6}$/.test(n))return toast('Yeni PIN 6 rəqəm olmalıdır','err');const r=await api('/api/auth/change',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({old:o,pin:n})});toast(r.ok?'PIN dəyişdirildi ✓':(r.err||'Alınmadı'),r.ok?'ok':'err');}
 /* giriş qapısı: PIN düz olana qədər tətbiq açılmır */
 fetch('/api/auth/status').then(r=>r.json()).then(s=>{if(s.authed){sessionUntil=Date.now()+((s.session||0)*1000);startApp();}else pinOpen('login','Daxil olmaq üçün PIN',ok=>{if(ok)startApp();});}).catch(()=>pinOpen('login','Daxil olmaq üçün PIN',ok=>{if(ok)startApp();}));

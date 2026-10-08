@@ -536,8 +536,9 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/auth/login' && req.method === 'POST') { const b = await readBody(req); const r = checkPin(b.pin); if (r.ok) { issueToken(res); r.session = SESSION_MS / 1000; } return json(res, r); }
     if (p === '/api/auth/verify' && req.method === 'POST') { const b = await readBody(req); const r = checkPin(b.pin); if (r.ok) { issueToken(res); r.session = SESSION_MS / 1000; } return json(res, r); }
     if (p === '/api/auth/change' && req.method === 'POST') { if (!isAuthed(req)) return json(res, { ok: false, err: 'Giriş tələb olunur' }, 401); const b = await readBody(req); if (String(b.old || '') !== String(loadAuth().pin)) return json(res, { ok: false, err: 'Köhnə PIN yanlış' }); if (!/^\d{6}$/.test(String(b.pin || ''))) return json(res, { ok: false, err: 'PIN 6 rəqəm olmalıdır' }); saveAuth({ pin: String(b.pin) }); log('PIN dəyişdirildi'); return json(res, { ok: true }); }
-    // silmə əməliyyatları yalnız girişdən sonra
-    if (((req.method === 'DELETE' && p.startsWith('/api/')) || p.endsWith('/batch-delete')) && !isAuthed(req)) return json(res, { ok: false, err: 'Giriş tələb olunur' }, 401);
+    // GİRİŞ QORUMASI: login səhifəsi və auth endpointlərindən başqa HƏR ŞEY girişdən sonra
+    const authOpen = (p === '/' || p === '/index.html' || p.startsWith('/api/auth/'));
+    if (!authOpen && !isAuthed(req)) { if (p.startsWith('/api/')) return json(res, { ok: false, err: 'Giriş tələb olunur' }, 401); res.writeHead(401, { 'Content-Type': 'text/plain; charset=utf-8' }); return res.end('Giriş tələb olunur'); }
     if (p === '/' || p === '/index.html') { fs.readFile(path.join(__dirname, 'public', 'index.html'), (e, d) => { if (e) { res.writeHead(500); return res.end('index.html yox'); } res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); res.end(d); }); }
     // kameralar
     else if (p === '/api/cameras' && req.method === 'GET') json(res, CAMS.map(c => ({ id: c.id, name: c.name, ip: c.ip, user: c.user })));
@@ -688,6 +689,7 @@ const server = http.createServer(async (req, res) => {
 // WebSocket — real-time danışıq (mikrofon → backchannel)
 server.on('upgrade', (req, sock) => {
   const u = new URL(req.url, 'http://x'); if (u.pathname !== '/talk') { sock.destroy(); return; }
+  if (!isAuthed(req)) { sock.destroy(); return; } // danışıq da girişdən sonra
   const cam = getCam(u.searchParams.get('cam')); const key = req.headers['sec-websocket-key']; if (!key) { sock.destroy(); return; }
   const accept = crypto.createHash('sha1').update(key + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64');
   sock.write('HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ' + accept + '\r\n\r\n');
