@@ -60,7 +60,8 @@ const AUTH_FILE = path.join(ROOT, 'auth.json');
 function loadAuth() { try { if (fs.existsSync(AUTH_FILE)) return JSON.parse(fs.readFileSync(AUTH_FILE, 'utf8')); } catch (e) {} return { pin: '123456' }; }
 function saveAuth(a) { try { fs.writeFileSync(AUTH_FILE, JSON.stringify(a, null, 2)); } catch (e) { log('auth.json yazılmadı: ' + e.message); } }
 if (!fs.existsSync(AUTH_FILE)) saveAuth(loadAuth()); // ilk işə düşəndə default PIN: 123456
-const authTokens = new Set();
+const authTokens = new Map(); // token -> bitmə vaxtı (10 dəqiqəlik sessiya)
+const SESSION_MS = 10 * 60 * 1000;
 const AUTH_MAX = 5, AUTH_LOCK_MS = 5 * 60 * 1000;
 let authFails = 0, authLockUntil = 0;
 function authState() { const now = Date.now(); if (authLockUntil && authLockUntil <= now) { authFails = 0; authLockUntil = 0; } return { locked: authLockUntil > now, wait: authLockUntil > now ? Math.ceil((authLockUntil - now) / 1000) : 0, left: Math.max(0, AUTH_MAX - authFails) }; }
@@ -71,8 +72,9 @@ function checkPin(pin) {
   if (authFails >= AUTH_MAX) { authLockUntil = Date.now() + AUTH_LOCK_MS; return { ok: false, locked: true, wait: Math.ceil(AUTH_LOCK_MS / 1000), left: 0 }; }
   return { ok: false, left: AUTH_MAX - authFails };
 }
-function issueToken(res) { const t = crypto.randomBytes(24).toString('hex'); authTokens.add(t); res.setHeader('Set-Cookie', `k_auth=${t}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800`); }
-function isAuthed(req) { const m = (req.headers.cookie || '').match(/k_auth=([a-f0-9]+)/); return !!(m && authTokens.has(m[1])); }
+function issueToken(res) { const t = crypto.randomBytes(24).toString('hex'); authTokens.set(t, Date.now() + SESSION_MS); res.setHeader('Set-Cookie', `k_auth=${t}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_MS / 1000}`); }
+function authLeft(req) { const m = (req.headers.cookie || '').match(/k_auth=([a-f0-9]+)/); if (!m) return 0; const exp = authTokens.get(m[1]); if (!exp) return 0; if (exp <= Date.now()) { authTokens.delete(m[1]); return 0; } return Math.ceil((exp - Date.now()) / 1000); }
+function isAuthed(req) { return authLeft(req) > 0; }
 
 // ---------- KÖMƏKÇİLƏR ----------
 function json(res, obj, code = 200) { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(obj)); }
@@ -530,9 +532,9 @@ const server = http.createServer(async (req, res) => {
   const cam = getCam(q.get('cam'));
   try {
     // ---- GİRİŞ / PIN ----
-    if (p === '/api/auth/status' && req.method === 'GET') { const s = authState(); return json(res, { authed: isAuthed(req), locked: s.locked, wait: s.wait, left: s.left }); }
-    if (p === '/api/auth/login' && req.method === 'POST') { const b = await readBody(req); const r = checkPin(b.pin); if (r.ok) issueToken(res); return json(res, r); }
-    if (p === '/api/auth/verify' && req.method === 'POST') { const b = await readBody(req); return json(res, checkPin(b.pin)); }
+    if (p === '/api/auth/status' && req.method === 'GET') { const s = authState(); return json(res, { authed: isAuthed(req), session: authLeft(req), locked: s.locked, wait: s.wait, left: s.left }); }
+    if (p === '/api/auth/login' && req.method === 'POST') { const b = await readBody(req); const r = checkPin(b.pin); if (r.ok) { issueToken(res); r.session = SESSION_MS / 1000; } return json(res, r); }
+    if (p === '/api/auth/verify' && req.method === 'POST') { const b = await readBody(req); const r = checkPin(b.pin); if (r.ok) { issueToken(res); r.session = SESSION_MS / 1000; } return json(res, r); }
     if (p === '/api/auth/change' && req.method === 'POST') { if (!isAuthed(req)) return json(res, { ok: false, err: 'Giriş tələb olunur' }, 401); const b = await readBody(req); if (String(b.old || '') !== String(loadAuth().pin)) return json(res, { ok: false, err: 'Köhnə PIN yanlış' }); if (!/^\d{6}$/.test(String(b.pin || ''))) return json(res, { ok: false, err: 'PIN 6 rəqəm olmalıdır' }); saveAuth({ pin: String(b.pin) }); log('PIN dəyişdirildi'); return json(res, { ok: true }); }
     // silmə əməliyyatları yalnız girişdən sonra
     if (((req.method === 'DELETE' && p.startsWith('/api/')) || p.endsWith('/batch-delete')) && !isAuthed(req)) return json(res, { ok: false, err: 'Giriş tələb olunur' }, 401);
