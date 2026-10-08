@@ -1117,13 +1117,13 @@ function updSel(k){$('#selcnt-'+k).textContent=SEL[k].size+' seçildi';}
 function reRender(k){k==='rec'?renderRecs():k==='mv'?renderMvids():renderGal(k);}
 const EP={rec:'/api/recordings',pho:'/api/photos',mot:'/api/motion',mv:'/api/motionvideos'};
 const LIST={rec:()=>RECS,pho:()=>DATA.pho,mot:()=>DATA.mot,mv:()=>MVIDS};
-async function delSelected(k){if(!SEL[k].size)return toast('Heç nə seçilməyib','err');if(!await requirePin(SEL[k].size+' element silmək üçün PIN daxil edin'))return;
+async function delSelected(k){if(!SEL[k].size)return toast('Heç nə seçilməyib','err');if(!await askConfirm(SEL[k].size+' element silinsin?',{title:'Seçilənləri sil',danger:true,okText:'Sil'}))return;if(!await requirePin(SEL[k].size+' element silmək üçün PIN daxil edin'))return;
   const r=await api(EP[k]+'/batch-delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({names:[...SEL[k]]})});
   toast((r.deleted||0)+' element silindi','ok');SEL[k].clear();refresh(k);}
 async function delAll(k){const list=LIST[k]();if(!list.length)return;if(!await askConfirm('Hamısı ('+list.length+' ədəd) silinsin?\nBu əməliyyat geri qaytarıla bilməz!',{title:'Hamısını sil',danger:true,okText:'Hamısını sil'}))return;if(!await requirePin('Hamısını silmək üçün PIN daxil edin'))return;
   const r=await api(EP[k]+'/batch-delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({all:true})});
   toast((r.deleted||0)+' element silindi','ok');SEL[k].clear();refresh(k);}
-async function delOne(k,name){if(!await requirePin('Silmək üçün PIN daxil edin'))return;
+async function delOne(k,name){if(!await askConfirm('Bu silinsin?\n'+name,{title:'Sil',danger:true,okText:'Sil'}))return;if(!await requirePin('Silmək üçün PIN daxil edin'))return;
   await api(EP[k]+'/'+encodeURIComponent(name),{method:'DELETE'});toast('Silindi');refresh(k);}
 function refresh(k){({rec:loadRecs,pho:loadPhotos,mot:loadMotion,mv:loadMvids}[k])();loadStatus();}
 
@@ -1156,7 +1156,7 @@ function lbNav(d){if(lbSingle)return;lbIdx=(lbIdx+d+DATA[lbKey].length)%DATA[lbK
 function lbReset(){lbScale=1;lbX=0;lbY=0;lbApply();}function lbZoom(d){lbScale=Math.min(6,Math.max(1,lbScale+d));if(lbScale===1){lbX=0;lbY=0;}lbApply();}
 function lbApply(){$('#lbImg').style.transform=`translate(${lbX}px,${lbY}px) scale(${lbScale})`;$('#lbZ').textContent='%'+Math.round(lbScale*100);}
 function lbDl(){if(lbSingle){const a=document.createElement('a');a.href=$('#lbImg').src;a.download='hadise.jpg';a.click();return;}const m=DATA[lbKey][lbIdx];const c=galCfg(lbKey);const a=document.createElement('a');a.href=M(c.serve+m.name);a.download=m.name;a.click();}
-async function lbDel(){if(lbSingle){lbClose();return;}const m=DATA[lbKey][lbIdx];if(!await requirePin('Şəkli silmək üçün PIN daxil edin'))return;const ep=lbKey==='pho'?'/api/photos/':'/api/motion/';await api(ep+encodeURIComponent(m.name),{method:'DELETE'});lbClose();refresh(lbKey);}
+async function lbDel(){if(lbSingle){lbClose();return;}const m=DATA[lbKey][lbIdx];if(!await askConfirm('Bu şəkil silinsin?',{title:'Şəkli sil',danger:true,okText:'Sil'}))return;if(!await requirePin('Şəkli silmək üçün PIN daxil edin'))return;const ep=lbKey==='pho'?'/api/photos/':'/api/motion/';await api(ep+encodeURIComponent(m.name),{method:'DELETE'});lbClose();refresh(lbKey);}
 const lbStage=$('#lbStage');
 lbStage.addEventListener('wheel',e=>{e.preventDefault();lbZoom(e.deltaY<0?.3:-.3);},{passive:false});
 lbStage.addEventListener('mousedown',e=>{if(lbScale<=1)return;lbDrag=true;lbStage.classList.add('drag');lbSX=e.clientX-lbX;lbSY=e.clientY-lbY;});
@@ -1265,7 +1265,7 @@ async function uploadSound(file){if(!file)return;const name=file.name;toast('Yü
   try{await fetch('/api/sounds/upload?name='+encodeURIComponent(name),{method:'POST',body:file});toast('Yükləndi ✓','ok');loadSounds();}catch(e){toast('Xəta','err');}}
 function sndRep(){return ($('#sndRepeat')&&$('#sndRepeat').value)||'1';}
 async function playSound(name){toast('Kameraya göndərilir…');const r=await api('/api/sounds/play?name='+encodeURIComponent(name)+'&repeat='+sndRep(),{method:'POST'});toast(r.ok?'🔊 Kameradan səsləndi ✓':'Alınmadı',r.ok?'ok':'err');}
-async function delSound(name){if(!await requirePin('Səsi silmək üçün PIN daxil edin'))return;await fetch('/api/sounds/'+encodeURIComponent(name),{method:'DELETE'});loadSounds();}
+async function delSound(name){if(!await askConfirm(name+' silinsin?',{title:'Səsi sil',danger:true,okText:'Sil'}))return;if(!await requirePin('Səsi silmək üçün PIN daxil edin'))return;await fetch('/api/sounds/'+encodeURIComponent(name),{method:'DELETE'});loadSounds();}
 let sndRec=null,sndStream=null,sndChunks=[];
 async function toggleSndRec(){const b=$('#sndRecBtn');if(sndRec){try{sndRec.stop();}catch(e){}return;}
   try{sndStream=await navigator.mediaDevices.getUserMedia({audio:true});}catch(e){return toast('Mikrofon icazəsi yoxdur','err');}
