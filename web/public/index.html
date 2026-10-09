@@ -223,6 +223,16 @@ body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background
 .pin-pad .pk-x{font-size:19px}
 .pin-cancel{background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:8px}
 .pin-cancel:hover{color:var(--text)}
+/* hərəkət-aşkarlama vəziyyəti (canlı) */
+.mstat{position:absolute;left:12px;bottom:12px;z-index:4;display:flex;align-items:center;gap:7px;padding:7px 13px;border-radius:20px;font-size:12.5px;font-weight:700;color:#fff;backdrop-filter:blur(4px);box-shadow:0 2px 10px rgba(0,0,0,.4)}
+.mstat .md{width:9px;height:9px;border-radius:50%;background:currentColor;flex:none}
+.mstat.listening{background:rgba(220,38,38,.9)}
+.mstat.listening .md{background:#fff;animation:mblink 1.3s infinite}
+.mstat.recording{background:rgba(220,38,38,.95)}
+.mstat.recording .md{background:#fff;animation:mblink .6s infinite}
+.mstat.error{background:rgba(234,88,12,.92)}
+.mstat.off{background:rgba(75,85,99,.85)}
+@keyframes mblink{0%,100%{opacity:1}50%{opacity:.25}}
 .loadmore{display:flex;justify-content:center;padding:18px 0 6px}
 .loadmore .btn{padding:11px 22px;font-size:13px}
 .cutbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;margin-top:10px;background:var(--panel2);border:1px solid var(--border);border-radius:12px}
@@ -495,6 +505,7 @@ img,video,canvas,svg{max-width:100%}
             <div class="spinner" id="liveSpin"></div><span class="live-badge"><span class="dot"></span>CANLI</span>
             <span class="rec-sub" id="recSub"><span class="d"></span>Qeyd aparılır · <b id="liveRecTime">00:00</b></span>
             <span class="conn-badge ok" id="connBadge"><span class="d"></span><span id="connT">Bağlanır…</span></span>
+            <span class="mstat" id="mStat" style="display:none"><span class="md"></span><span id="mStatT"></span></span>
             <img id="live" alt=""><canvas id="boxCanvas" class="box-canvas"></canvas><div class="live-ov" id="liveClock"></div>
             <!-- PTZ açılır panel -->
             <div class="ptz-ov" id="ptzOv">
@@ -1199,11 +1210,15 @@ function applyNet(n){$('#netPing').textContent=(n.ping!=null?n.ping+' ms':'—')
 async function loadStatus(){const s=await api('/api/status');if(!s.camera)return;
   const pill=$('#camPill');pill.classList.toggle('on',s.camera.online);pill.querySelector('span:last-child').textContent=s.camera.online?'Kamera onlayn':'Kamera oflayn';$('#footIp').textContent=s.camera.ip+' · :'+s.server.port;
   $('#nRec').textContent=s.recordings.count;$('#nPho').textContent=s.photos.count;$('#nMot').textContent=s.motion.count;if(s.motionVideos)$('#nMvid').textContent=s.motionVideos.count;
+  if(s.motionStatus)updateMStat(s.motionStatus);
   recActive=s.recording.active;recSince=s.recording.since;recMode=s.recording.mode||'continuous';
   $('#recInd').classList.toggle('on',recActive);$('#recStart').disabled=recActive;$('#recStop').disabled=!recActive;updateRecTime();
   $('#sysStats').innerHTML=tile('blue','video','Yazı',s.recordings.count)+tile('amber','cam','Şəkil',s.photos.count)+tile('purple','cam','Hərəkət',s.motion.count)+tile('green','clock','İş müddəti',fmt(s.server.uptime/1000));
   if(s.disk&&s.disk.total){const pct=s.disk.used/s.disk.total*100;$('#dBar').style.width=pct.toFixed(1)+'%';$('#dU').textContent='İstifadə: '+fmtSize(s.disk.used)+' (%'+pct.toFixed(0)+')';$('#dF').textContent='Boş: '+fmtSize(s.disk.free);$('#dDetail').textContent='Ümumi disk: '+fmtSize(s.disk.total)+' · Tətbiqin istifadəsi: '+fmtSize(s.totalUsedByApp);}
   $('#sysInfo').innerHTML=[['Kamera modeli',s.camera.model],['IP ünvanı',s.camera.ip],['İstifadəçi',s.camera.user],['Çözünürlük',s.camera.resolution],['Yazılma qovluğu',s.recordings.dir],['Şəkil qovluğu',s.photos.dir],['Hərəkət qovluğu',s.motion.dir],['Server',s.server.host+' · '+s.server.platform],['Node.js',s.server.node]].map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:11px 20px;border-bottom:1px solid var(--border);font-size:13px"><span style="color:var(--muted)">${k}</span><span style="font-weight:500;text-align:right;word-break:break-all;max-width:60%">${v}</span></div>`).join('');}
+function updateMStat(ms){const el=$('#mStat');if(!el)return;const T=$('#mStatT');
+  const map={listening:['🔴 Hərəkət üçün dinlənilir','listening'],recording:['🔴 Hərəkət yazılır…','recording'],error:['⚠ Hərəkət aşkarlama İŞLƏMİR','error'],off:['Hərəkət aşkarlama sönülü','off']};
+  const [txt,cls]=map[ms.state]||map.error;el.style.display='flex';el.className='mstat '+cls;T.textContent=txt;}
 function tile(c,ic,lbl,val){const icons={video:'M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm6 4v8l6-4-6-4z',cam:'M12 15.2A3.2 3.2 0 1 0 12 8.8a3.2 3.2 0 0 0 0 6.4zM9 3L7.2 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3H9z',clock:'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 10V7h-2v6h5v-2h-3z'};return `<div class="tile"><div class="ic ${c}"><svg viewBox="0 0 24 24"><path d="${icons[ic]}"/></svg></div><div class="val">${val}</div><div class="lbl">${lbl}</div></div>`;}
 
 /* HADİSƏLƏR — bütün hərəkət foto+videolarını vahid xronoloji lentdə */

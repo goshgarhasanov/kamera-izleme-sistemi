@@ -522,8 +522,13 @@ async function status(req, res, cam) {
   const recs = listDir(cam, 'videolar', 'mp4', true), mot = listDir(cam, 'hareket', 'jpg'), pho = listDir(cam, 'resimler', 'jpg'), mvid = listDir(cam, 'hareket_video', 'mp4');
   let disk = {}; try { const st = fs.statfsSync(MEDIA_ROOT); disk = { total: st.blocks * st.bsize, free: st.bavail * st.bsize, used: (st.blocks - st.bavail) * st.bsize }; } catch (e) {}
   const rs = recState[cam.id] || {};
+  // hərəkət-aşkarlama sisteminin vəziyyəti (canlıda qırmızı statusda göstərilir)
+  const S = mState[cam.id] || {}; const proc = !!motionProcs[cam.id]; const fresh = S.lastFrame && (Date.now() - S.lastFrame < 15000);
+  let mState_ = 'off';
+  if (cam.recMode !== 'off') { if (S.clipPending) mState_ = 'recording'; else if (proc && fresh) mState_ = 'listening'; else mState_ = 'error'; }
   json(res, {
     camera: { id: cam.id, name: cam.name, ip: cam.ip, user: cam.user, online: await camOnline(cam), model: 'Uniview', resolution: '2880x1620 H.265', fps: 15 },
+    motionStatus: { mode: cam.recMode, state: mState_ },
     recording: { active: !!recProcs[cam.id] && rs.enabled, since: rs.since || null, mode: cam.recMode },
     recordings: { count: recs.length, totalSize: recs.reduce((s, r) => s + r.size, 0), newest: recs[0] ? recs[0].date : null },
     motion: { count: mot.length }, photos: { count: pho.length }, motionVideos: { count: mvid.length },
